@@ -1,0 +1,96 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f7f9fa;
+    margin: 0;
+    padding: 0 0 40px 0;
+}
+
+
+h1 {
+    color: #2c3e50;
+    text-align: center;
+    margin-top: 30px;
+}
+
+button {
+    background: #3498db;
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    margin: 5px 3px;
+    border-radius: 4px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+button.shutdown {
+    background: #e74c3c;
+}
+button.shutdown:hover {
+    background: #c0392b;
+}
+
+button.start {
+    background: #27ae60;
+}
+button.start:hover {
+    background: #1e8449;
+}
+
+table {
+    border-collapse: collapse;
+    margin: 30px auto 0 auto;
+    width: 90%;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(44,62,80,0.07);
+}
+
+th, td {
+    border: 1px solid #e1e4e8;
+    padding: 10px 12px;
+    text-align: left;
+}
+
+th {
+    background: #f0f4f8;
+    color: #34495e;
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background: #f9fbfc;
+}
+
+tr:last-child td {
+    font-weight: bold;
+    background: #eaf6fb;
+}
+
+.pricelist-table {
+    margin: 20px auto;
+    width: 90%;
+    border-collapse: collapse;
+    background: #fff;
+}
+.pricelist-table th, .pricelist-table td {
+    border: 1px solid #e1e4e8;
+    padding: 8px 10px;
+    text-align: left;
+}
+.pricelist-table th {
+    background: #f0f4f8;
+}
+
+.actions > div {
+    gap: 7px;
+}
+
+@media (max-width: 700px) {
+    table, th, td {
+        font-size: 13px;
+    }
+    table {
+        width: 100%;
+    }
+}

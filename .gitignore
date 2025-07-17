@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+*.env
+*.sqlite3
+*.db
+.vscode/
+.idea/
+*.log
+
+# OS files
+.DS_Store
+
+# Virtual environments
+venv/
+env/
+
+# Local config
+vcap_services.json
+commands.txt

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Plant Data Chart</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- Mobile ready meta tag -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f7f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            padding: 32px 40px 40px 40px;
+        }
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 32px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+        label {
+            font-weight: 500;
+            color: #34495e;
+        }
+        select, input[type="datetime-local"] {
+            padding: 6px 10px;
+            border-radius: 5px;
+            border: 1px solid #bfc9d1;
+            font-size: 1rem;
+            background: #f4f8fb;
+        }
+        button {
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 18px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #125ea7;
+        }
+        #chart {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+            margin-top: 20px;
+            width: 100% !important;
+            height: auto !important;
+            max-width: 100vw;
+        }
+        #back-btn {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            background: #f4f8fb;
+            color: #1976d2;
+            border: 1px solid #bfc9d1;
+            border-radius: 5px;
+            padding: 6px 16px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            z-index: 10;
+        }
+        #back-btn:hover {
+            background: #e3eaf2;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 8px;
+                margin: 8px;
+            }
+            .controls {
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
+            }
+            h2 {
+                font-size: 1.2rem;
+                margin-bottom: 18px;
+            }
+            #chart {
+                min-width: 0;
+                width: 100vw !important;
+                max-width: 100vw;
+                height: 250px !important;
+            }
+            label, select, input[type="datetime-local"], button {
+                font-size: 1rem;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            #back-btn {
+                top: 8px;
+                left: 8px;
+                padding: 6px 10px;
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button onclick="window.location.href='/'" id="back-btn">← Back</button>
+        <h2>Plant Data Chart</h2>
+        <div class="controls">
+            <label for="plant">Select Plant:</label>
+            <select id="plant"></select>
+            <label for="start">Start:</label>
+            <input type="datetime-local" id="start">
+            <label for="end">End:</label>
+            <input type="datetime-local" id="end">
+            <button onclick="loadData()">Show Chart</button>
+        </div>
+        <canvas id="chart" width="800" height="400"></canvas>
+    </div>
+    <script>
+        function pad(n) { return n < 10 ? '0' + n : n; }
+
+        function setDefaultDateTimes() {
+            const now = new Date();
+            const start = new Date(now);
+            start.setHours(2, 0, 0, 0);
+
+            // Format as yyyy-MM-ddTHH:mm for input[type="datetime-local"]
+            function toInputValue(dt) {
+                return dt.getFullYear() + '-' +
+                    pad(dt.getMonth() + 1) + '-' +
+                    pad(dt.getDate()) + 'T' +
+                    pad(dt.getHours()) + ':' +
+                    pad(dt.getMinutes());
+            }
+
+            document.getElementById('start').value = toInputValue(start);
+            document.getElementById('end').value = toInputValue(now);
+        }
+
+        function getPlantIdFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('plant_id');
+        }
+
+        async function loadPlants() {
+            const res = await fetch('/api/plants');
+            const plants = await res.json();
+            const sel = document.getElementById('plant');
+            // Add "All" option
+            const allOpt = document.createElement('option');
+            allOpt.value = "all";
+            allOpt.textContent = "All Plants";
+            sel.appendChild(allOpt);
+            plants.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name;
+                sel.appendChild(opt);
+            });
+            setDefaultDateTimes();
+
+            // Select plant if plant_id is in URL
+            const plantId = getPlantIdFromUrl();
+            if (plantId) {
+                sel.value = plantId;
+            }
+        }
+
+        async function loadData() {
+            const plantId = document.getElementById('plant').value;
+            const start = document.getElementById('start').value;
+            const end = document.getElementById('end').value;
+            if (!plantId || !start || !end) {
+                alert('Please select all fields.');
+                return;
+            }
+            const url = `/api/plant-data?plant_id=${plantId}&start=${start}&end=${end}`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            // Sum values per minute (in Sofia time)
+            const minuteSums = {};
+            data.forEach(d => {
+                const time = new Date(d.ts);
+                // Convert UTC to Sofia time
+                const sofiaTime = new Date(
+                    time.toLocaleString('en-US', { timeZone: 'Europe/Sofia' })
+                );
+                const minuteKey = sofiaTime.toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit', hour12: false });
+                if (!minuteSums[minuteKey]) {
+                    minuteSums[minuteKey] = 0;
+                }
+                minuteSums[minuteKey] += d.power_kW;
+            });
+
+            // Prepare sorted labels and values
+            const labels = Object.keys(minuteSums).sort((a, b) => a.localeCompare(b));
+            const values = labels.map(label => minuteSums[label]);
+
+            if (window.myChart) window.myChart.destroy();
+            const ctx = document.getElementById('chart').getContext('2d');
+            window.myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Power (kW)',
+                        data: values,
+                        borderColor: '#1976d2',
+                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                        pointBackgroundColor: '#1976d2',
+                        pointRadius: 3,
+                        tension: 0.25,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: { color: '#2c3e50' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `Power: ${ctx.parsed.y.toFixed(2)} kW`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Time', color: '#34495e' },
+                            ticks: { color: '#34495e' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Power (kW)', color: '#34495e' },
+                            ticks: { color: '#34495e' },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        loadPlants();
+    </script>
+</body>
+</html>

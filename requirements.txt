@@ -1,0 +1,13 @@
+Flask==2.3.*
+requests
+beautifulsoup4
+pandas
+lxml
+APScheduler
+Authlib
+SQLAlchemy
+Flask-SQLAlchemy
+psycopg2
+cfenv
+gunicorn
+python-dotenv

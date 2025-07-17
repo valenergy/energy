@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Plant list</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script>
+        async function getData() {
+            const response = await fetch('/get-data', { method: 'POST' });
+            const data = await response.json();
+            const elexIds = [5787879, 5326596, 5258825, 5053891, 5040036, 5231898];
+            const tbody = document.getElementById('plants-tbody');
+            tbody.innerHTML = '';
+            let totalPower = 0;
+            data.forEach(plant => {
+                plant.company = elexIds.includes(plant.ps_id) ? 'ELEX' : 'TOKI';
+            });
+            data.sort((a, b) => a.company.localeCompare(b.company));
+            let totalLivePower = 0;
+
+            // Add this before rendering rows
+            const plantIdMap = {};
+            const plantsRes = await fetch('/api/plants');
+            const plantsList = await plantsRes.json();
+            plantsList.forEach(p => {
+                plantIdMap[p.plant_id] = { id: p.id, status: p.status, contract: p.contract, installed_power: p.installed_power };
+            });
+            console.log('plantIdMap:', plantIdMap);
+            console.log('plantIdMap:', plantsList);
+            data.forEach(plant => {
+                const row = document.createElement('tr');
+                const plantInfo = plantIdMap[plant.ps_id] || {};
+                const dbId = plantInfo.id || '';
+                const status = plantInfo.status || '';
+                const contract = plantInfo.contract || '';
+                const installedPower = plantInfo.installed_power || '';
+                row.innerHTML = `
+                    <td>${dbId}</td>
+                    <td><a href="/data?plant_id=${dbId}" style="color:#1976d2;text-decoration:underline;">${plant.name}</a></td>
+                    <td>${plant.ps_id}</td>
+                    <td>${contract}</td>
+                    <td>${installedPower}</td>
+                    <td>${status}</td>
+                    <td>${plant.current_power}</td>
+                    <td>${plant.live_power}</td>
+                    <td>
+                        <button onclick="plantAction('${dbId}', 'shutdown')">Shutdown</button>
+                    </td>
+                    <td>
+                        <button onclick="plantAction('${dbId}', 'start')">Start</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+                const power = parseFloat(plant.current_power);
+                if (!isNaN(power)) {
+                    totalPower += power;
+                }
+                const livePower = parseFloat(plant.live_power);
+                if (!isNaN(livePower)) {
+                    totalLivePower += livePower;
+                }
+            });
+            const totalRow = document.createElement('tr');
+            totalRow.innerHTML = `
+                <td colspan="6" style="text-align:right;"><strong>Total current power:</strong></td>
+                <td><strong>${totalPower}</strong></td>
+                <td><strong>${totalLivePower}</strong></td>
+            `;
+            tbody.appendChild(totalRow);
+        }
+
+        async function shutdownAllPlants() {
+            const response = await fetch('/shutdown/all', { method: 'POST' });
+            const result = await response.text();
+            alert(result);
+        }
+
+        async function shutdownElexPlants() {
+            const response = await fetch('/shutdown/elex', { method: 'POST' });
+            const result = await response.text();
+            alert(result);
+        }
+
+        async function shutdownTokiPlants() {
+            const response = await fetch('/shutdown/toki', { method: 'POST' });
+            const result = await response.text();
+            alert(result);
+        }
+
+        async function startAllPlants() {
+            const response = await fetch('/start/all', { method: 'POST' });
+            const result = await response.text();
+            alert(result);
+        }
+
+        async function startElexPlants() {
+            const response = await fetch('/start/elex', { method: 'POST' });
+            const result = await response.text();
+            alert(result);
+        }
+
+        async function startTokiPlants() {
+            const response = await fetch('/start/toki', { method: 'POST' });
+            const result = await response.text();
+            alert(result);
+        }
+
+        async function loadPricelistData() {
+            const response = await fetch('/pricelist-data');
+            const data = await response.json();
+
+            function renderTable(tableId, records) {
+                const table = document.getElementById(tableId);
+                table.innerHTML = '';
+                if (!records || records.length === 0) {
+                    table.innerHTML = '<tr><td>No data available</td></tr>';
+                    return;
+                }
+                // Header
+                const header = Object.keys(records[0]);
+                const thead = document.createElement('thead');
+                const headRow = document.createElement('tr');
+                header.forEach(col => {
+                    const th = document.createElement('th');
+                    th.textContent = col;
+                    headRow.appendChild(th);
+                });
+                thead.appendChild(headRow);
+                table.appendChild(thead);
+                // Body
+                const tbody = document.createElement('tbody');
+                records.forEach(row => {
+                    const tr = document.createElement('tr');
+                    // Highlight row in red if price < 35.00
+                    let price = row['Price (BGN)'];
+                    if (typeof price === 'string') price = parseFloat(price.replace(',', '.'));
+                    if (!isNaN(price) && price < 36.10) {
+                        tr.style.backgroundColor = '#ffcccc';
+                    }
+                    header.forEach(col => {
+                        const td = document.createElement('td');
+                        td.textContent = row[col];
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+            }
+
+            const today = new Date().toISOString().slice(0, 10);
+            const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+            renderTable('today-pricelist', data[today]);
+            renderTable('tomorrow-pricelist', data[tomorrow]);
+        }
+
+
+        async function plantAction(ps_id, action) {
+            const response = await fetch('/plant-action-by-psid', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ps_id, action })
+            });
+            const result = await response.text();
+            getData(); // Refresh the plant list
+        }
+
+        window.onload = function() {
+            getData();
+            loadPricelistData();
+        };
+    </script>
+</head>
+<body>
+    <div class="container" style="max-width: 900px; margin: 0 auto;">
+        <h1>Plant list</h1>
+        <div class="actions" style="margin-bottom: 24px;">
+            <button type="button" onclick="getData()">Load All</button>
+            <button type="button" onclick="downloadIbex()">Download Price List</button>
+            <br>
+            <div style="margin-top:10px;">
+                <button type="button" class="shutdown" onclick="shutdownAllPlants()">Shutdown All</button>
+                <button type="button" class="shutdown" onclick="shutdownElexPlants()">Shutdown ELEX</button>
+                <button type="button" class="shutdown" onclick="shutdownTokiPlants()">Shutdown TOKI</button>
+            </div>
+            <div style="margin-top:10px;">
+                <button type="button" class="start" onclick="startAllPlants()">Start All</button>
+                <button type="button" class="start" onclick="startElexPlants()">Start ELEX</button>
+                <button type="button" class="start" onclick="startTokiPlants()">Start TOKI</button>
+            </div>
+        </div>
+        <table border="1" style="margin-top:20px; width:100%;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>name</th>
+                    <th>ps_id</th>
+                    <th>company</th>
+                    <th>installed power</th>
+                    <th>status</th>
+                    <th>current power</th>
+                    <th>Live Power (kW)</th>
+                    <th>Shutdown</th>
+                    <th>Start</th>
+                </tr>
+            </thead>
+            <tbody id="plants-tbody">
+                <!-- Rows will be inserted here -->
+            </tbody>
+        </table>
+        <h2 style="margin-top:32px;">Today's Pricelist</h2>
+        <table id="today-pricelist" class="pricelist-table" style="width:100%;"></table>
+        <h2 style="margin-top:32px;">Tomorrow's Pricelist</h2>
+        <table id="tomorrow-pricelist" class="pricelist-table" style="width:100%;"></table>
+    </div>
+        <div style="text-align:center; margin:32px 0 12px 0;">
+        Server time: {{ server_time }}
+    </div>
+    <script>
+        async function downloadIbex() {
+            const response = await fetch('/download-ibex', { method: 'POST' });
+            const result = await response.text();
+            // Reload the pricelist tables after download
+            loadPricelistData();
+        }
+
+        // Print the current time at the end of the page
+        window.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            const timeString = now.toLocaleString();
+            const timeDiv = document.createElement('div');
+            timeDiv.style.textAlign = 'center';
+            timeDiv.style.margin = '32px 0 12px 0';
+            timeDiv.textContent = 'Current time: ' + timeString;
+            document.body.appendChild(timeDiv);
+        });
+    </script>
+    {% if user %}
+      <div>
+        <strong>Name:</strong> {{ user1.name }}<br>
+        <strong>Email:</strong> {{ user1.email }}
+      </div>
+    {% endif %}
+
+    <div style="text-align:center; margin:32px 0 12px 0;">
+        <button type="button" onclick="window.location.href='/logs'">Logs</button>
+    </div>
+</body>
+</html>
