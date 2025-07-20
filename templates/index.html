@@ -173,6 +173,7 @@
     </script>
 </head>
 <body>
+    {% include 'nav.html' %}
     <div class="container" style="max-width: 900px; margin: 0 auto;">
         <h1>Plant list</h1>
         <div class="actions" style="margin-bottom: 24px;">
@@ -213,10 +214,6 @@
         <table id="today-pricelist" class="pricelist-table" style="width:100%;"></table>
         <h2 style="margin-top:32px;">Tomorrow's Pricelist</h2>
         <table id="tomorrow-pricelist" class="pricelist-table" style="width:100%;"></table>
-    </div>
-        <div style="text-align:center; margin:32px 0 12px 0;">
-        Server time: {{ server_time }}
-    </div>
     <script>
         async function downloadIbex() {
             const response = await fetch('/download-ibex', { method: 'POST' });
@@ -224,22 +221,11 @@
             // Reload the pricelist tables after download
             loadPricelistData();
         }
-
-        // Print the current time at the end of the page
-        window.addEventListener('DOMContentLoaded', () => {
-            const now = new Date();
-            const timeString = now.toLocaleString();
-            const timeDiv = document.createElement('div');
-            timeDiv.style.textAlign = 'center';
-            timeDiv.style.margin = '32px 0 12px 0';
-            timeDiv.textContent = 'Current time: ' + timeString;
-            document.body.appendChild(timeDiv);
-        });
     </script>
     {% if user %}
       <div>
-        <strong>Name:</strong> {{ user1.name }}<br>
-        <strong>Email:</strong> {{ user1.email }}
+        <strong>Name:</strong> {{ user.first_name }}<br>
+        <strong>Email:</strong> {{ user.email }}
       </div>
     {% endif %}
 

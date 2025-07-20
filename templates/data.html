@@ -3,6 +3,7 @@
 <head>
     <title>Plant Data Chart</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- Mobile ready meta tag -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -117,8 +118,8 @@
     </style>
 </head>
 <body>
+    {% include 'nav.html' %}
     <div class="container">
-        <button onclick="window.location.href='/'" id="back-btn">← Back</button>
         <h2>Plant Data Chart</h2>
         <div class="controls">
             <label for="plant">Select Plant:</label>

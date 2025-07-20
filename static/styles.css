@@ -86,11 +86,79 @@ tr:last-child td {
     gap: 7px;
 }
 
+/* Navigation styles */
+.main-nav {
+    background: #1976d2;
+    color: #fff;
+    width: 100%;
+}
+.nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 10px;
+}
+.nav-logo {
+    font-weight: bold;
+    font-size: 1.2em;
+    padding: 12px 0;
+}
+.nav-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 2em;
+    cursor: pointer;
+}
+.nav-menu {
+    list-style: none;
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+.nav-menu li a {
+    display: block;
+    padding: 16px 18px;
+    color: #fff;
+    text-decoration: none;
+}
+.nav-menu li a:hover {
+    background: #1565c0;
+}
+
+/* Responsive styles */
 @media (max-width: 700px) {
     table, th, td {
         font-size: 13px;
     }
     table {
         width: 100%;
+    }
+    .nav-toggle {
+        display: block;
+    }
+    .nav-menu {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        background: #1976d2;
+        position: absolute;
+        left: 0;
+        top: 56px;
+        z-index: 1000;
+    }
+    .nav-menu.nav-menu-visible {
+        display: flex;
+    }
+    .nav-menu li a {
+        padding: 14px 10px;
+        border-top: 1px solid #1565c0;
+    }
+    .nav-container {
+        flex-direction: row;
+        position: relative;
     }
 }

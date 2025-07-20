@@ -84,7 +84,7 @@ def auth_callback():
     token = oauth.my_oidc.authorize_access_token()
     userinfo = oauth.my_oidc.userinfo()
     session['user'] = userinfo
-    return redirect('/')
+    return redirect('/plants')
 
 @app.route('/logout')
 def logout():
@@ -101,7 +101,7 @@ def welcome():
 def index():
     user = session.get('user')
     server_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    return render_template('index.html', user=user, server_time=server_time, user1=user)
+    return render_template('index.html', user=user, server_time=server_time)
 
 @app.route('/get-data', methods=['POST'])
 @login_required

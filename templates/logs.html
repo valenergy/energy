@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Audit Logs</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         table { border-collapse: collapse; width: 100%; }
         th, td { border: 1px solid #ccc; padding: 8px; }
@@ -11,6 +12,7 @@
     </style>
 </head>
 <body>
+    {% include 'nav.html' %}
     <h2>Audit Logs</h2>
     <table>
         <thead>

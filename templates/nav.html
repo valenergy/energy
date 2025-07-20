@@ -1,0 +1,22 @@
+<nav class="main-nav">
+    <div class="nav-container">
+        <span class="nav-logo"><a href="/" style="color:#fff;text-decoration:none;">Energy</a></span>
+        <button class="nav-toggle" aria-label="Toggle navigation" onclick="toggleNavMenu()">
+            &#9776;
+        </button>
+        <ul class="nav-menu" id="navMenu">
+            <li><a href="/">Home</a></li>
+            <li><a href="/plants">Plants</a></li>
+            <li><a href="/data">Data</a></li>
+            <li><a href="/logs">Logs</a></li>
+            <li><a href="/price">Price</a></li>
+            <li><a href="/logout">Logout</a></li>
+        </ul>
+    </div>
+</nav>
+<script>
+function toggleNavMenu() {
+    var menu = document.getElementById('navMenu');
+    menu.classList.toggle('nav-menu-visible');
+}
+</script>
