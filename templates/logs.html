@@ -13,27 +13,26 @@
 </head>
 <body>
     {% include 'nav.html' %}
-    <h2>Audit Logs</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Timestamp</th>
-                <th>Principal</th>
-                <th>Message</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in logs %}
-            <tr>
-                <td>{{ log.ts }}</td>
-                <td>{{ log.principal }}</td>
-                <td style="white-space: pre-line;">{{ log.message }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <div style="text-align:center; margin:32px 0 12px 0;">
-        <button type="button" onclick="window.location.href='/plants'">Back</button>
-    </div>
+     <div class="container" style="max-width: 900px; margin: 0 auto;">
+        <h2>Audit Logs</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Principal</th>
+                    <th>Message</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.ts }}</td>
+                    <td>{{ log.principal }}</td>
+                    <td style="white-space: pre-line;">{{ log.message }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+     </div>
 </body>
 </html>
