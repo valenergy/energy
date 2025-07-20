@@ -93,6 +93,10 @@ def logout():
 
 
 @app.route('/')
+def welcome():
+    return render_template('welcome.html')
+
+@app.route('/plants')
 @login_required
 def index():
     user = session.get('user')
@@ -503,8 +507,9 @@ def plant_action_by_psid():
     )
     return f"{action.capitalize()} triggered", 200
 
-scheduler.start()
-atexit.register(lambda: scheduler.shutdown())
+if os.environ.get("FLASK_ENV") != "development":
+    scheduler.start()
+    atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port, debug=True if os.environ.get("FLASK_ENV") == "development" else False)
