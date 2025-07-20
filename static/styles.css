@@ -91,6 +91,8 @@ tr:last-child td {
     background: #1976d2;
     color: #fff;
     width: 100%;
+    position: relative;
+    z-index: 100;
 }
 .nav-container {
     display: flex;
@@ -99,11 +101,15 @@ tr:last-child td {
     max-width: 900px;
     margin: 0 auto;
     padding: 0 10px;
+    position: relative;
+    height: 56px;
 }
 .nav-logo {
     font-weight: bold;
     font-size: 1.2em;
     padding: 12px 0;
+    flex: 1 0 auto;
+    text-align: left;
 }
 .nav-toggle {
     display: none;
@@ -112,6 +118,7 @@ tr:last-child td {
     color: #fff;
     font-size: 2em;
     cursor: pointer;
+    margin-left: auto;
 }
 .nav-menu {
     list-style: none;
@@ -160,5 +167,11 @@ tr:last-child td {
     .nav-container {
         flex-direction: row;
         position: relative;
+        height: 56px;
+    }
+    .nav-logo {
+        flex: 1 0 auto;
+        text-align: left;
+        padding-left: 0;
     }
 }
