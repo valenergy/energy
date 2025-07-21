@@ -35,6 +35,13 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.environ.get("SECRET_KEY")
 
+# Force HTTPS redirect
+@app.before_request
+def before_request():
+    if not request.is_secure and os.environ.get("FLASK_ENV") != "development":
+        url = request.url.replace("http://", "https://", 1)
+        return redirect(url, code=301)
+
 
 port = int(os.environ.get('PORT', 3000))
 
