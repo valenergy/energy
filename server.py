@@ -2,8 +2,8 @@ import os
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for, session
 from app.get_plant_data import get_plant_data_with_live_power, get_live_active_power
-from app.shutdown import shutdown_plants, shutdown_plant
-from app.start import start_plants, start_plant
+from app.shutdown import shutdown_plant
+from app.start import start_plant
 import pandas as pd
 from datetime import datetime, timedelta
 from subprocess import run
@@ -115,18 +115,6 @@ def index():
 def get_data():
     data = get_plant_data_with_live_power()
     return jsonify(data)
-
-@app.route('/shutdown/<param>', methods=['POST'])
-@login_required
-def shutdown(param):
-    results = shutdown_plants(param)
-    return "\n".join(results)
-
-@app.route('/start/<param>', methods=['POST'])
-@login_required
-def start(param):
-    results = start_plants(param)
-    return "\n".join(results)
 
 
 @app.route('/pricelist-data', methods=['GET'])
@@ -313,6 +301,7 @@ def scheduled_shutdown_check():
                     if all("success" in (msg.lower() if msg else "") for msg in result):
                         plant.status = "OFF"
                         db.session.commit()
+                        print(f"Plant {plant.name} shutdown successfully")
                     log_audit("scheduler", f"Shutdown result for plant {plant.name}: {result}")
 
 scheduler.add_job(
@@ -490,7 +479,6 @@ def get_destination_url():
 @app.route('/plant-action-by-psid', methods=['POST'])
 @login_required
 def plant_action_by_psid():
-    from app.models import Invertor
     data = request.get_json()
     ps_id = data.get('ps_id')
     action = data.get('action')  # "shutdown" or "start"
@@ -498,13 +486,24 @@ def plant_action_by_psid():
         return "Missing or invalid parameters", 400
     invertors = Invertor.query.filter_by(plant_id=ps_id).all()
     device_ids = [inv.device_id for inv in invertors if inv.device_id]
+    print(f"Device IDs for ps_id {ps_id}: {device_ids}")
     if not device_ids:
         return "No device_ids found for this ps_id", 404
     # Call the appropriate function
     if action == "shutdown":
         result = shutdown_plant(device_ids)
+        # Update plant status to OFF
+        plant = Plant.query.filter_by(id=ps_id).first()
+        if plant:
+            plant.status = "OFF"
+            db.session.commit()
     else:
         result = start_plant(device_ids)
+        # Update plant status to ON
+        plant = Plant.query.filter_by(id=ps_id).first()
+        if plant:
+            plant.status = "ON"
+            db.session.commit()
     # Audit log
     user = session.get('user')
     user_mail = user.get('email') if user else 'unknown'

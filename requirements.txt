@@ -8,6 +8,8 @@ Authlib
 SQLAlchemy
 Flask-SQLAlchemy
 psycopg2
-cfenv
 gunicorn
 python-dotenv
+imapclient
+pyzmail36
+openpyxl

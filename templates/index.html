@@ -23,11 +23,10 @@
             const plantIdMap = {};
             const plantsRes = await fetch('/api/plants');
             const plantsList = await plantsRes.json();
+
             plantsList.forEach(p => {
                 plantIdMap[p.plant_id] = { id: p.id, status: p.status, contract: p.contract, installed_power: p.installed_power };
             });
-            console.log('plantIdMap:', plantIdMap);
-            console.log('plantIdMap:', plantsList);
             data.forEach(plant => {
                 const row = document.createElement('tr');
                 const plantInfo = plantIdMap[plant.ps_id] || {};
@@ -68,42 +67,6 @@
                 <td><strong>${totalLivePower}</strong></td>
             `;
             tbody.appendChild(totalRow);
-        }
-
-        async function shutdownAllPlants() {
-            const response = await fetch('/shutdown/all', { method: 'POST' });
-            const result = await response.text();
-            alert(result);
-        }
-
-        async function shutdownElexPlants() {
-            const response = await fetch('/shutdown/elex', { method: 'POST' });
-            const result = await response.text();
-            alert(result);
-        }
-
-        async function shutdownTokiPlants() {
-            const response = await fetch('/shutdown/toki', { method: 'POST' });
-            const result = await response.text();
-            alert(result);
-        }
-
-        async function startAllPlants() {
-            const response = await fetch('/start/all', { method: 'POST' });
-            const result = await response.text();
-            alert(result);
-        }
-
-        async function startElexPlants() {
-            const response = await fetch('/start/elex', { method: 'POST' });
-            const result = await response.text();
-            alert(result);
-        }
-
-        async function startTokiPlants() {
-            const response = await fetch('/start/toki', { method: 'POST' });
-            const result = await response.text();
-            alert(result);
         }
 
         async function loadPricelistData() {
