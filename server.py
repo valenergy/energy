@@ -26,7 +26,6 @@ import smtplib
 from email.mime.text import MIMEText
 from email.header import Header
 
-from cfenv import AppEnv
 import requests
 
 load_dotenv()
@@ -363,8 +362,7 @@ def send_shutdown_notification():
     import smtplib
 
     sender = "tokinvest@sig-solar.com"
-    destination = get_destination_url()
-    mail_password = destination["destinationConfiguration"].get("mail.password")
+    mail_password = os.environ.get("MAIL_PASSWORD")
     cc_recipient = "tokinvest@sig-solar.com"
     tomorrow_dt = datetime.now(ZoneInfo("Europe/Sofia")) + timedelta(days=1)
     tomorrow = tomorrow_dt.strftime("%Y-%m-%d")
@@ -441,39 +439,6 @@ def log_audit(principal, message):
     )
     db.session.add(entry)
     db.session.commit()
-
-
-def get_destination_url():
-    env = AppEnv()
-
-    # Get the destination service credentials from VCAP_SERVICES
-    destination_service = env.get_service(label='destination')
-    if not destination_service:
-        raise Exception("No destination service found in VCAP_SERVICES")
-
-    credentials = destination_service.credentials
-    client_id = credentials['clientid']
-    client_secret = credentials['clientsecret']
-    token_url = credentials['url'] + '/oauth/token'
-    destination_url = credentials['uri']
-
-    # Get OAuth token
-    token_resp = requests.post(
-        token_url,
-        data={'grant_type': 'client_credentials'},
-        auth=(client_id, client_secret)
-    )
-    access_token = token_resp.json()['access_token']
-
-    headers = {
-        'Authorization': f'Bearer {access_token}'
-    }
-    resp = requests.get(
-        f"{destination_url}/destination-configuration/v1/destinations/mail_service",
-        headers=headers
-    )
-    destination_details = resp.json()
-    return destination_details
 
 
 @app.route('/plant-action-by-psid', methods=['POST'])
