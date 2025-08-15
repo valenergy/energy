@@ -478,6 +478,14 @@ def plant_action_by_psid():
     )
     return f"{action.capitalize()} triggered", 200
 
+@app.route('/sungrow/callback', methods=['POST'])
+def sungrow_callback():
+    headers = dict(request.headers)
+    body = request.get_data(as_text=True)
+    message = f"Headers: {headers}\nBody: {body}"
+    log_audit("sungrow_callback", message)
+    return "Callback received", 200
+
 if os.environ.get("FLASK_ENV") != "development":
     scheduler.start()
     atexit.register(lambda: scheduler.shutdown())
