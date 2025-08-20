@@ -15,7 +15,7 @@ def get_plant_data():
         "lang": "_en_US"
     }
 
-    exclude_ids = {5722350, 5193962}
+    exclude_ids = {5722350, 5193962, 5892214, 5266067}
 
     response = requests.post(url, headers=headers, json=data)
 

@@ -9,7 +9,9 @@ class Company(db.Model):
     name = db.Column(db.String(128), nullable=False)
     mail = db.Column(db.String(128))
     phone = db.Column(db.String(32))
-    logo = db.Column(db.String(256))  # You can store a URL or file path
+    logo = db.Column(db.String(256))
+    refresh_token = db.Column(db.String(512))
+    access_token = db.Column(db.String(512))
 
     def __repr__(self):
         return f"<Company {self.name}>"
@@ -103,3 +105,26 @@ class AuditLog(db.Model):
 
     def __repr__(self):
         return f"<AuditLog {self.ts} {self.principal}: {self.message[:30]}>"
+    
+class Device(db.Model):
+    __tablename__ = 'devices'
+    id = db.Column(db.Integer, primary_key=True)
+    type_name = db.Column(db.String(128))
+    ps_key = db.Column(db.String(64))
+    device_sn = db.Column(db.String(64))
+    dev_status = db.Column(db.String(16))
+    device_type = db.Column(db.Integer)
+    factory_name = db.Column(db.String(128))
+    uuid = db.Column(db.Integer)
+    device_name = db.Column(db.String(128))
+    device_code = db.Column(db.Integer)
+    ps_id = db.Column(db.Integer)
+    device_model_id = db.Column(db.Integer)
+    communication_dev_sn = db.Column(db.String(64))
+    device_model_code = db.Column(db.String(64))
+    plant_id = db.Column(db.Integer, db.ForeignKey('plants.id'), nullable=False)
+
+    plant = db.relationship('Plant', backref='devices')
+
+    def __repr__(self):
+        return f"<Device {self.device_name} ({self.device_sn})>"

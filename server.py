@@ -2,8 +2,9 @@ import os
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for, session
 from app.get_plant_data import get_plant_data_with_live_power, get_live_active_power
-from app.shutdown import shutdown_plant
-from app.start import start_plant
+from app.shutdown import shutdown_plant, shutdown_plant_via_ems
+
+from app.start import start_plant, start_plant_via_ems
 import pandas as pd
 from datetime import datetime, timedelta
 from subprocess import run
@@ -14,9 +15,9 @@ from apscheduler.triggers.cron import CronTrigger
 from zoneinfo import ZoneInfo 
 from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
-from app.models import db, User, Data, Plant, Price, Invertor
+from app.models import db, User, Data, Plant, Price, Invertor, Device
 from app import create_app
-
+from sqlalchemy import or_
 
 from flask import Flask
 from app.models import db
@@ -272,7 +273,7 @@ def logs_page():
     return render_template('logs.html', logs=logs_with_sofia_time)
 
 def scheduled_shutdown_check():
-    # Get current Sofia time and hour using ZoneInfo
+
     now_sofia = datetime.now(ZoneInfo("Europe/Sofia"))
     current_hour = now_sofia.hour
 
@@ -282,26 +283,37 @@ def scheduled_shutdown_check():
 
     with app.app_context():
         today = now_sofia.date()
-        # Get all plants with a min_price set and status ON
-        plants = Plant.query.filter(Plant.min_price != None, Plant.status == "ON").all()
+        plants = Plant.query.filter(
+            Plant.min_price != None,
+            Plant.status == "ON"
+        ).all()
         for plant in plants:
-            # Get price for this hour
             price_row = Price.query.filter_by(date=today, hour=current_hour+1).first()
             if not price_row:
                 continue
             log_audit("scheduler", f"Checking to shutdown {plant.name} with price {price_row.price} against min_price {plant.min_price}")
             if price_row.price < plant.min_price:
-                # Get all invertors for this plant
-                invertors = Invertor.query.filter_by(plant_id=plant.id).all()
-                device_ids = [inv.device_id for inv in invertors if inv.device_id]
-                if device_ids:
-                    result = shutdown_plant(device_ids)
-                    # Check if shutdown was successful for all device_ids
-                    if all("success" in (msg.lower() if msg else "") for msg in result):
-                        plant.status = "OFF"
-                        db.session.commit()
-                        print(f"Plant {plant.name} shutdown successfully")
-                    log_audit("scheduler", f"Shutdown result for plant {plant.name}: {result}")
+                if not plant.hasBattery:
+                    # No battery: use current logic
+                    invertors = Invertor.query.filter_by(plant_id=plant.id).all()
+                    device_ids = [inv.device_id for inv in invertors if inv.device_id]
+                    if device_ids:
+                        result = shutdown_plant(device_ids)
+                        if all("success" in (msg.lower() if msg else "") for msg in result):
+                            plant.status = "OFF"
+                            db.session.commit()
+                            print(f"Plant {plant.name} shutdown successfully")
+                        log_audit("scheduler", f"Shutdown result for plant {plant.name}: {result}")
+                else:
+                    # Has battery: use EMS shutdown
+                    ems_device = Device.query.filter_by(plant_id=plant.id, device_type=26).first()
+                    if ems_device:
+                        result = shutdown_plant_via_ems(ems_device.uuid, plant.id)
+                        if result and not result.get("error"):
+                            plant.status = "OFF"
+                            db.session.commit()
+                            print(f"Plant {plant.name} shutdown via EMS successfully")
+                        log_audit("scheduler", f"EMS shutdown result for plant {plant.name}: {result}")
 
 scheduler.add_job(
     scheduled_shutdown_check,
@@ -323,25 +335,32 @@ def scheduled_start_check():
 
     with app.app_context():
         today = now_sofia.date()
-        # Get all plants with a min_price set and status ON
         plants = Plant.query.filter(Plant.min_price != None, Plant.status == "OFF").all()
         for plant in plants:
-            # Get price for this hour
             price_row = Price.query.filter_by(date=today, hour=current_hour+1).first()
             if not price_row:
                 continue
             log_audit("scheduler", f"Checking to start {plant.name} with price {price_row.price} against min_price {plant.min_price}")
             if price_row.price > plant.min_price:
-                # Get all invertors for this plant
-                invertors = Invertor.query.filter_by(plant_id=plant.id).all()
-                device_ids = [inv.device_id for inv in invertors if inv.device_id]
-                if device_ids:
-                    result = start_plant(device_ids)
-                    # Check if start was successful for all device_ids
-                    if all("success" in (msg.lower() if msg else "") for msg in result):
-                        plant.status = "ON"
-                        db.session.commit()
-                    log_audit("scheduler", f"Start result for plant {plant.name}: {result}")
+                if not plant.hasBattery:
+                    # No battery: use current logic
+                    invertors = Invertor.query.filter_by(plant_id=plant.id).all()
+                    device_ids = [inv.device_id for inv in invertors if inv.device_id]
+                    if device_ids:
+                        result = start_plant(device_ids)
+                        if all("success" in (msg.lower() if msg else "") for msg in result):
+                            plant.status = "ON"
+                            db.session.commit()
+                        log_audit("scheduler", f"Start result for plant {plant.name}: {result}")
+                else:
+                    # Has battery: use EMS start
+                    ems_device = Device.query.filter_by(plant_id=plant.id, device_type=26).first()
+                    if ems_device:
+                        result = start_plant_via_ems(ems_device.uuid, plant.id)
+                        if result and not result.get("error"):
+                            plant.status = "ON"
+                            db.session.commit()
+                        log_audit("scheduler", f"EMS start result for plant {plant.name}: {result}")
 
 scheduler.add_job(
     scheduled_start_check,
@@ -449,36 +468,53 @@ def plant_action_by_psid():
     action = data.get('action')  # "shutdown" or "start"
     if not ps_id or action not in ("shutdown", "start"):
         return "Missing or invalid parameters", 400
-    invertors = Invertor.query.filter_by(plant_id=ps_id).all()
-    device_ids = [inv.device_id for inv in invertors if inv.device_id]
-    print(f"Device IDs for ps_id {ps_id}: {device_ids}")
-    if not device_ids:
-        return "No device_ids found for this ps_id", 404
-    # Call the appropriate function
-    if action == "shutdown":
-        result = shutdown_plant(device_ids)
-        # Update plant status to OFF
-        plant = Plant.query.filter_by(id=ps_id).first()
-        if plant:
-            plant.status = "OFF"
-            db.session.commit()
+
+    plant = Plant.query.filter_by(id=ps_id).first()
+    if not plant:
+        return "Plant not found", 404
+
+    # If plant has battery, use EMS method
+    if plant.hasBattery:
+        ems_device = Device.query.filter_by(plant_id=plant.id, device_type=26).first()
+        if not ems_device:
+            return "EMS device not found for this plant", 404
+        if action == "shutdown":
+            result = shutdown_plant_via_ems(ems_device.uuid, plant.id)
+            if result and not result.get("error"):
+                plant.status = "OFF"
+                db.session.commit()
+        else:
+            result = start_plant_via_ems(ems_device.uuid, plant.id)
+            if result and not result.get("error"):
+                plant.status = "ON"
+                db.session.commit()
     else:
-        result = start_plant(device_ids)
-        # Update plant status to ON
-        plant = Plant.query.filter_by(id=ps_id).first()
-        if plant:
-            plant.status = "ON"
-            db.session.commit()
+        invertors = Invertor.query.filter_by(plant_id=ps_id).all()
+        device_ids = [inv.device_id for inv in invertors if inv.device_id]
+        print(f"Device IDs for ps_id {ps_id}: {device_ids}")
+        if not device_ids:
+            return "No device_ids found for this ps_id", 404
+        if action == "shutdown":
+            result = shutdown_plant(device_ids)
+            if plant:
+                plant.status = "OFF"
+                db.session.commit()
+        else:
+            result = start_plant(device_ids)
+            if plant:
+                plant.status = "ON"
+                db.session.commit()
+
     # Audit log
     user = session.get('user')
     user_mail = user.get('email') if user else 'unknown'
     log_audit(
         user_mail,
-        f"Triggered {action} for plant with ps_id={ps_id} and device_ids={device_ids}"
+        f"Triggered {action} for plant with ps_id={ps_id}"
     )
     return f"{action.capitalize()} triggered", 200
 
-@app.route('/sungrow/callback', methods=['POST'])
+@app.route('/sungrow/callback', methods=['GET'])
 def sungrow_callback():
     headers = dict(request.headers)
     body = request.get_data(as_text=True)
