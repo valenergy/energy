@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import requests
 from cryptography.fernet import Fernet
 from app.models import db, Company, AuditLog
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo 
 
 load_dotenv()
@@ -40,20 +40,24 @@ def refresh_tokens(company_id):
     # Extract tokens
     new_access_token = data.get("access_token") or data["result_data"].get("access_token")
     new_refresh_token = data.get("refresh_token") or data["result_data"].get("refresh_token")
+    expires_in = data.get("expires_in") or data["result_data"].get("expires_in")
     # Encrypt and store
     company.access_token = encrypt_token(new_access_token)
     company.refresh_token = encrypt_token(new_refresh_token)
+    # Store access_token_expires_at
+    if expires_in:
+        company.access_token_expires_at = datetime.now(ZoneInfo("Europe/Sofia")) + timedelta(seconds=int(expires_in))
     entry = AuditLog(
         ts = datetime.now(ZoneInfo("Europe/Sofia")),
         principal=f"company_id={company_id}",
-        message="OAuth tokens updated via refresh_tokens, expires ib {data.get('expires_in') or data['result_data'].get('expires_in')}"
+        message=f"OAuth tokens updated via refresh_tokens, expires in {expires_in} seconds"
     )
     db.session.add(entry)
     db.session.commit()
     return {
         "access_token": new_access_token,
         "refresh_token": new_refresh_token,
-        "expires_in": data.get("expires_in") or data["result_data"].get("expires_in")
+        "expires_in": expires_in
     }
 
 def get_access_token(company_id):

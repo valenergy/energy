@@ -12,6 +12,7 @@ class Company(db.Model):
     logo = db.Column(db.String(256))
     refresh_token = db.Column(db.String(512))
     access_token = db.Column(db.String(512))
+    access_token_expires_at = db.Column(db.DateTime)
 
     def __repr__(self):
         return f"<Company {self.name}>"

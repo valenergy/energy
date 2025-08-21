@@ -2,6 +2,8 @@ import requests
 import os
 from app.login_helper import refresh_tokens, decrypt_token
 from app.models import Plant, Company
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 def start_plant(uuids):
     """
@@ -58,6 +60,12 @@ def start_plant_via_ems(ems_uuid, plant_id):
     company = Company.query.get(plant.company_id)
     if not company or not company.access_token or not company.refresh_token:
         return {"error": "Company or tokens not found"}
+
+    # Check if access token is expired or missing
+    now = datetime.now(ZoneInfo("Europe/Sofia"))
+    if not company.access_token_expires_at or company.access_token_expires_at < now:
+        refresh_result = refresh_tokens(company.id)
+        company = Company.query.get(plant.company_id)  # reload to get updated token
 
     def get_access_token():
         return decrypt_token(company.access_token)
