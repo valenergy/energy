@@ -64,7 +64,10 @@ def shutdown_plant_via_ems(ems_uuid, plant_id):
 
     # Check if access token is expired or missing
     now = datetime.now(ZoneInfo("Europe/Sofia"))
-    if not company.access_token_expires_at or company.access_token_expires_at < now:
+    expires_at = company.access_token_expires_at
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=ZoneInfo("Europe/Sofia"))
+    if not expires_at or expires_at < now:
         refresh_result = refresh_tokens(company.id)
         company = Company.query.get(plant.company_id)  # reload to get updated token
 
