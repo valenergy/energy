@@ -12,7 +12,7 @@ from email.mime.application import MIMEApplication
 
 def fetch_attachment():
     load_dotenv()
-    download_folder="attachments"
+    download_folder = "attachments"
     imap_host = os.environ.get("IMAP_HOST")
     email_user = os.environ.get("EMAIL_USER")
     email_pass = os.environ.get("MAIL_PASSWORD")
@@ -21,18 +21,23 @@ def fetch_attachment():
         server.login(email_user, email_pass)
         server.select_folder('INBOX')
         today = datetime.now().strftime("%d-%b-%Y")
-        yesterday = (datetime.now() - timedelta(days=5)).strftime("%d-%b-%Y")
         messages = server.search([
             'FROM', sender,
-            'SINCE', yesterday
+            'SINCE', today
         ])
+        print(f"Found {len(messages)} messages from {sender} since {today}")
         for uid in reversed(messages):
             raw_message = server.fetch([uid], ['BODY[]'])[uid][b'BODY[]']
             message = pyzmail.PyzMessage.factory(raw_message)
+            subject = message.get_subject()
+            print(f"Processing email: {subject}")
             for part in message.mailparts:
                 filename = part.filename
-                print(f"Found attachment: {filename}")
+                # If subject contains "Мизия 2", set filename accordingly
                 if filename and filename.endswith('.xlsx'):
+                    if subject and "Мизия 2" in subject:
+                        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+                        filename = f"ФЕЦ Мизия 2_{tomorrow}.xlsx"
                     if not os.path.isdir(download_folder):
                         os.makedirs(download_folder)
                     filepath = os.path.join(download_folder, filename)
