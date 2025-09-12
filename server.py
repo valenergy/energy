@@ -530,6 +530,8 @@ def sungrow_callback():
 @login_required
 def forecast():
     attachments_dir = os.path.join(os.path.dirname(__file__), 'attachments')
+    if not os.path.isdir(attachments_dir):
+        os.makedirs(attachments_dir)
     files = []
     for f in os.listdir(attachments_dir):
         if os.path.isfile(os.path.join(attachments_dir, f)):

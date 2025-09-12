@@ -43,7 +43,6 @@ def fetch_attachment():
                     filepath = os.path.join(download_folder, filename)
                     with open(filepath, 'wb') as f:
                         f.write(part.get_payload())
-                    return filepath
     return None
 
 def send_dam_schedulle_mail(filename=None):

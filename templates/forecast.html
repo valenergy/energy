@@ -23,7 +23,7 @@
             {% for file in files %}
             <tr>
                 <td>
-                    <a href="{{ url_for('download_attachment', filename=file) }}" target="_blank">{{ file }}</a>
+                    {{ file }}
                 </td>
                 <td>
                     <button onclick="openFileContent('{{ file }}')">Open</button>
