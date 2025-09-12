@@ -50,6 +50,8 @@ def send_dam_schedulle_mail(filename=None):
     sender = os.environ.get("EMAIL_USER")
     password = os.environ.get("MAIL_PASSWORD")
     recipient = os.environ.get("RECIPIENT")
+    cc1 = sender
+    cc2 = "h.bakalov@sig-solar.com"
     if filename is None:
         tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
         filename = f"DAM_Schedulle_M13_{tomorrow}.xlsx"
@@ -59,7 +61,7 @@ def send_dam_schedulle_mail(filename=None):
     msg = MIMEMultipart()
     msg['From'] = sender
     msg['To'] = recipient
-    msg['Cc'] = sender
+    msg['Cc'] = f"{cc1}, {cc2}"
     msg['Subject'] = f"DAM Schedulle M13 {filename.split('_')[-1].split('.')[0]}"
     body = "ФЕЦ Ток Инвест М13 с ИТН 32Z140000228916V няма да работи при цена под 35.15лв"
     msg.attach(MIMEText(body, 'plain'))
@@ -79,7 +81,11 @@ def send_dam_schedulle_mail(filename=None):
         with smtplib.SMTP("smtp.sig-solar.com", 587) as server:
             server.starttls()
             server.login(sender, password)
-            server.sendmail(sender, [recipient, sender], msg.as_string())
+            server.sendmail(
+                sender,
+                [recipient, cc1, cc2],
+                msg.as_string()
+            )
         print("Email sent successfully.")
         return True
     except Exception as e:
