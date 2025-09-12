@@ -622,6 +622,22 @@ def send_forecast(filename):
             return jsonify({"error": "Send failed"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/attachments/delete/<filename>', methods=['DELETE'])
+@login_required
+def delete_attachment(filename):
+    import os
+    attachments_dir = os.path.join(os.path.dirname(__file__), 'attachments')
+    file_path = os.path.join(attachments_dir, filename)
+    try:
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "File not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 if os.environ.get("FLASK_ENV") != "development":
     scheduler.start()
