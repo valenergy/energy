@@ -14,3 +14,4 @@ imapclient
 pyzmail36
 openpyxl
 cryptography
+pymodbus

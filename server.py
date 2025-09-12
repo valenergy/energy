@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for, session
 from app.get_plant_data import get_plant_data_with_live_power, get_live_active_power
 from app.shutdown import shutdown_plant, shutdown_plant_via_ems
+from app.fetch_data_from_mail import fetch_attachment
 
 from app.start import start_plant, start_plant_via_ems
 import pandas as pd
@@ -28,6 +29,9 @@ from email.mime.text import MIMEText
 from email.header import Header
 
 import requests
+
+import csv
+from flask import jsonify
 
 load_dotenv()
 # app = create_app()
@@ -521,6 +525,101 @@ def sungrow_callback():
     message = f"Headers: {headers}\nBody: {body}"
     log_audit("sungrow_callback", message)
     return "Callback received", 200
+
+@app.route('/forecast')
+@login_required
+def forecast():
+    attachments_dir = os.path.join(os.path.dirname(__file__), 'attachments')
+    files = []
+    for f in os.listdir(attachments_dir):
+        if os.path.isfile(os.path.join(attachments_dir, f)):
+            files.append(f)
+    return render_template('forecast.html', files=files)
+
+@app.route('/attachments/<filename>')
+@login_required
+def download_attachment(filename):
+    attachments_dir = os.path.join(os.path.dirname(__file__), 'attachments')
+    return send_from_directory(attachments_dir, filename)
+
+@app.route('/attachments/content/<filename>')
+@login_required
+def attachment_content(filename):
+    attachments_dir = os.path.join(os.path.dirname(__file__), 'attachments')
+    file_path = os.path.join(attachments_dir, filename)
+    rows = []
+    try:
+        if filename.endswith('.xlsx'):
+            df = pd.read_excel(file_path)
+            rows.append(list(df.columns))
+            for _, row in df.iterrows():
+                row_values = ["" if pd.isna(cell) else str(cell) for cell in row]
+                rows.append(row_values)
+        elif filename.endswith('.csv') or filename.endswith('.txt'):
+            with open(file_path, encoding='utf-8') as f:
+                reader = csv.reader(f, delimiter=',')
+                for row in reader:
+                    rows.append(row)
+        else:
+            return jsonify({"error": "Preview supported only for .csv, .txt, or .xlsx files."}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify(rows)
+
+@app.route('/attachments/content/<filename>', methods=['POST'])
+@login_required
+def save_attachment_content(filename):
+    import json
+    attachments_dir = os.path.join(os.path.dirname(__file__), 'attachments')
+    file_path = os.path.join(attachments_dir, filename)
+    data = request.get_json()
+    rows = data.get('rows', [])
+    try:
+        if filename.endswith('.xlsx'):
+            import pandas as pd
+            # Convert third column to float if possible
+            for i in range(1, len(rows)):
+                try:
+                    # Only convert if not empty
+                    if rows[i][2] != "":
+                        rows[i][2] = float(rows[i][2])
+                except Exception:
+                    pass  # Leave as string if conversion fails
+            df = pd.DataFrame(rows[1:], columns=rows[0])
+            df.to_excel(file_path, index=False)
+        elif filename.endswith('.csv') or filename.endswith('.txt'):
+            with open(file_path, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.writer(f)
+                for row in rows:
+                    writer.writerow(row)
+        else:
+            return jsonify({"error": "Save supported only for .csv, .txt, or .xlsx files."}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify({"success": True})
+
+@app.route('/fetch_excel_attachment', methods=['POST'])
+@login_required
+def fetch_excel_attachment():
+    print("Fetching email attachment via API...")
+    try:
+        fetch_attachment()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/send_forecast/<filename>', methods=['POST'])
+@login_required
+def send_forecast(filename):
+    from app.fetch_data_from_mail import send_dam_schedulle_mail
+    try:
+        result = send_dam_schedulle_mail(filename)
+        if result:
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": "Send failed"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if os.environ.get("FLASK_ENV") != "development":
     scheduler.start()

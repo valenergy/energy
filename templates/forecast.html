@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Forecast Attachments</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        #file-content-table { margin-top: 30px; border-collapse: collapse; width: 100%; }
+        #file-content-table th, #file-content-table td { border: 1px solid #ccc; padding: 6px 10px; }
+        #file-content-table th { background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    {% include 'nav.html' %}
+    <div class="container" style="max-width: 900px; margin: 0 auto;">
+        <h1>Forecast Attachments</h1>
+        <button id="fetch-excel-btn" onclick="fetchExcelAttachment()" style="margin-bottom:20px;">Fetch Forecast</button>
+        <table>
+            <tr>
+                <th>File</th>
+                <th>Actions</th>
+            </tr>
+            {% for file in files %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('download_attachment', filename=file) }}" target="_blank">{{ file }}</a>
+                </td>
+                <td>
+                    <button onclick="openFileContent('{{ file }}')">Open</button>
+                    <button onclick="sendForecast('{{ file }}', this)">Send Forecast</button>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="2">No attachments found.</td></tr>
+            {% endfor %}
+        </table>
+        <div id="file-content-section" style="display:none;">
+            <h2 id="file-content-title"></h2>
+            <table id="file-content-table"></table>
+            <button id="save-file-btn" onclick="saveFileContent()" style="margin-top:15px;">Save</button>
+            <span id="save-status" style="margin-left:10px;color:green;display:none;">Saved!</span>
+        </div>
+    </div>
+    <script>
+        let currentFilename = null;
+        let currentRows = null;
+
+        async function openFileContent(filename) {
+            const res = await fetch(`/attachments/content/${filename}`);
+            const rows = await res.json();
+            currentFilename = filename;
+            currentRows = rows;
+            const section = document.getElementById('file-content-section');
+            const table = document.getElementById('file-content-table');
+            const title = document.getElementById('file-content-title');
+            document.getElementById('save-status').style.display = 'none';
+            title.textContent = filename;
+            table.innerHTML = '';
+            if (rows.length > 0) {
+                // Render header
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                rows[0].forEach(col => {
+                    const th = document.createElement('th');
+                    th.textContent = col;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                // Render body
+                const tbody = document.createElement('tbody');
+                for (let i = 1; i < rows.length; i++) {
+                    const tr = document.createElement('tr');
+                    rows[i].forEach((cell, j) => {
+                        const td = document.createElement('td');
+                        if (j === 2) { // 3rd column (index 2)
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.value = cell;
+                            input.style.width = "80px";
+                            input.onchange = function() {
+                                currentRows[i][j] = input.value;
+                            };
+                            td.appendChild(input);
+                        } else {
+                            td.textContent = cell;
+                        }
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                }
+                table.appendChild(tbody);
+            }
+            section.style.display = 'block';
+            section.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function saveFileContent() {
+            if (!currentFilename || !currentRows) return;
+            const res = await fetch(`/attachments/content/${currentFilename}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rows: currentRows })
+            });
+            const status = document.getElementById('save-status');
+            if (res.ok) {
+                status.textContent = "Saved!";
+                status.style.color = "green";
+            } else {
+                status.textContent = "Save failed!";
+                status.style.color = "red";
+            }
+            status.style.display = 'inline';
+            setTimeout(() => { status.style.display = 'none'; }, 2000);
+        }
+
+        async function fetchExcelAttachment() {
+            const btn = document.getElementById('fetch-excel-btn');
+            btn.disabled = true;
+            btn.textContent = "Fetching...";
+            const res = await fetch('/fetch_excel_attachment', { method: 'POST' });
+            if (res.ok) {
+                btn.textContent = "Fetched!";
+                setTimeout(() => {
+                    btn.textContent = "Fetch Excel Attachment";
+                    btn.disabled = false;
+                    location.reload(); // Reload to show new files
+                }, 1000);
+            } else {
+                btn.textContent = "Fetch failed!";
+                setTimeout(() => {
+                    btn.textContent = "Fetch Excel Attachment";
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }
+
+        async function sendForecast(filename, btn) {
+            btn.disabled = true;
+            btn.textContent = "Sending...";
+            const res = await fetch(`/send_forecast/${encodeURIComponent(filename)}`, { method: 'POST' });
+            if (res.ok) {
+                btn.textContent = "Sent!";
+                btn.style.color = "green";
+                setTimeout(() => {
+                    btn.textContent = "Send Forecast";
+                    btn.style.color = "";
+                    btn.disabled = false;
+                }, 2000);
+            } else {
+                btn.textContent = "Failed!";
+                btn.style.color = "red";
+                setTimeout(() => {
+                    btn.textContent = "Send Forecast";
+                    btn.style.color = "";
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }
+    </script>
+</body>
+</html>
