@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Energy Data</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .filter-row { margin-bottom: 20px; }
+        .filter-row select,
+        .filter-row input[type="date"] {
+            font-size: 1em;
+            height: 2em;
+            padding: 2px 5px;
+        }
+        #energy-table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        #energy-table th, #energy-table td { border: 1px solid #ccc; padding: 6px 10px; }
+        #energy-table th { background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    {% include 'nav.html' %}
+    <div class="container" style="max-width: 900px; margin: 0 auto;">
+        <h1>Energy Data</h1>
+        <div class="filter-row">
+            <label for="plant-select">Plant:</label>
+            <select id="plant-select">
+                {% for plant in plants %}
+                <option value="{{ plant.id }}">{{ plant.name }}</option>
+                {% endfor %}
+            </select>
+            <label for="date-input">Date:</label>
+            <input type="date" id="date-input">
+            <label>
+                <input type="checkbox" id="whole-month-checkbox"> Whole Month
+            </label>
+            <button onclick="fetchEnergyData()">Show</button>
+        </div>
+        <div class="action-row" style="margin-bottom: 30px;">
+            <button id="load-yield-btn" type="button">Load Plant Yield</button>
+            <span id="yield-status"></span>
+
+            <button id="load-trader-forecast-btn" type="button">Load Trader Forecast</button>
+            <span id="trader-forecast-status"></span>
+        </div>
+        <table id="energy-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Start Period</th>
+                    <th>End Period</th>
+                    <th>Duration (min)</th>
+                    <th>Trader Forecast</th>
+                    <th>Producer Forecast</th>
+                    <th>Yield</th>
+                    <th>Exported</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody id="energy-table-body">
+                <!-- Data rows will be inserted here -->
+            </tbody>
+        </table>
+        <button id="save-producer-forecast-btn" type="button" style="margin-bottom:10px;">Save and Send Forecast</button>
+        <span id="save-status"></span>
+        <div class="upload-row" style="margin-bottom: 30px;">
+            <h2>Upload excel file from previous month</h2>
+            <form id="energy-upload-form" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".xlsx,.xls" required>
+                <input type="hidden" name="plant_id" value="12">
+                <button type="submit">Upload</button>
+                <span id="upload-status"></span>
+            </form>
+        </div>
+    </div>
+    <script>
+            // Set default value of date-input to today
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateInput = document.getElementById('date-input');
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            dateInput.value = `${yyyy}-${mm}-${dd}`;
+
+                // Set default plant to id 3
+            const plantSelect = document.getElementById('plant-select');
+            if (plantSelect) {
+                plantSelect.value = "3";
+            }
+            document.getElementById('save-producer-forecast-btn').style.display = "none";
+        });
+        document.getElementById('save-producer-forecast-btn').addEventListener('click', async function() {
+            const status = document.getElementById('save-status');
+            status.textContent = "Saving...";
+            status.style.color = "black";
+            const rows = document.querySelectorAll('#energy-table-body tr');
+            let dataToSave = [];
+            rows.forEach(row => {
+                const cells = row.children;
+                dataToSave.push({
+                    date: cells[0].textContent,
+                    start_period: cells[1].textContent,
+                    plant_id: document.getElementById('plant-select').value,
+                    producer_forecast: cells[5].textContent.trim()
+                });
+            });
+            const res = await fetch('/save_producer_forecast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ forecasts: dataToSave })
+            });
+            if (res.ok) {
+                status.textContent = "Producer forecast saved and sent!";
+                status.style.color = "green";
+                setTimeout(() => { status.textContent = ""; }, 3000);
+                fetchEnergyData(); // Optionally refresh table
+            } else {
+                status.textContent = "Failed to save or send!";
+                status.style.color = "red";
+                setTimeout(() => { status.textContent = ""; }, 3000);
+            }
+        });
+        document.getElementById('energy-upload-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const status = document.getElementById('upload-status');
+            status.textContent = "Uploading...";
+            const formData = new FormData(form);
+            const res = await fetch('/energy_upload', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                status.textContent = "Upload successful!";
+                status.style.color = "green";
+                setTimeout(() => { status.textContent = ""; }, 2000);
+                fetchEnergyData(); // Optionally refresh table
+            } else {
+                status.textContent = "Upload failed!";
+                status.style.color = "red";
+                setTimeout(() => { status.textContent = ""; }, 2000);
+            }
+        });
+        document.getElementById('load-trader-forecast-btn').addEventListener('click', async function() {
+            const status = document.getElementById('trader-forecast-status');
+            status.textContent = "Loading...";
+            status.style.color = "black";
+            const plantId = document.getElementById('plant-select').value;
+            const dateInput = document.getElementById('date-input').value;
+            // Format date as DD-MMM-YYYY
+            const dateObj = new Date(dateInput);
+            const dateStr = document.getElementById('date-input').value;
+            const formattedDate = dateObj.toLocaleString('en-GB', {
+                day: '2-digit', month: 'short', year: 'numeric'
+            }).replace(/ /g, '-');
+            console.log("Loading trader forecast for plant " + plantId + " on date " + formattedDate + " (raw input: " + dateStr + ")");    
+            const res = await fetch('/load_trader_forecast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plant_id: plantId, date_str: dateStr })
+            });
+            if (!res.ok) {
+                status.textContent = "Failed to load trader forecast!";
+                status.style.color = "red";
+                setTimeout(() => { status.textContent = ""; }, 3000);
+                return;
+            }
+            status.textContent = "Trader forecast loaded!";
+            status.style.color = "green";
+            setTimeout(() => { status.textContent = ""; }, 3000);
+                // Load data for the next day
+            const nextDay = new Date(dateObj.getTime() + 24 * 60 * 60 * 1000);
+            const yyyy = nextDay.getFullYear();
+            const mm = String(nextDay.getMonth() + 1).padStart(2, '0');
+            const dd = String(nextDay.getDate()).padStart(2, '0');
+            const nextDayStr = `${yyyy}-${mm}-${dd}`;
+            document.getElementById('date-input').value = nextDayStr;
+            await fetchEnergyData();
+        });
+        async function fetchEnergyData() {
+            const plantId = document.getElementById('plant-select').value;
+            const date = document.getElementById('date-input').value;
+            const wholeMonth = document.getElementById('whole-month-checkbox').checked;
+            let url = `/energy_data?plant_id=${plantId}`;
+            if (wholeMonth && date) {
+                url += `&month=${date.slice(0,7)}`; // YYYY-MM
+            } else if (date) {
+                url += `&date=${date}`;
+            }
+            const res = await fetch(url);
+            const data = await res.json();
+            const tbody = document.getElementById('energy-table-body');
+            tbody.innerHTML = '';
+            data.forEach((row, idx) => {
+                // If producer_forecast is null/empty, use trader_forecast
+                let producerForecast = (row.producer_forecast != null && row.producer_forecast !== '')
+                    ? row.producer_forecast
+                    : (row.trader_forecast != null ? row.trader_forecast : '');
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.date || ''}</td>
+                    <td>${row.start_period || ''}</td>
+                    <td>${row.end_period || ''}</td>
+                    <td>${row.duration_in_minutes != null ? row.duration_in_minutes : ''}</td>
+                    <td>${row.trader_forecast != null ? row.trader_forecast : ''}</td>
+                    <td contenteditable="true" class="producer-forecast-cell" data-row="${idx}">${producerForecast}</td>
+                    <td>${row.yield_power != null ? row.yield_power : ''}</td>
+                    <td>${row.exported != null ? row.exported : ''}</td>
+                    <td>${row.price != null ? row.price : ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+                // Show/hide Save button based on row count
+            const saveBtn = document.getElementById('save-producer-forecast-btn');
+            if (data.length > 0) {
+                saveBtn.style.display = "inline-block";
+            } else {
+                saveBtn.style.display = "none";
+            }
+        }
+        document.getElementById('load-yield-btn').addEventListener('click', async function() {
+            const status = document.getElementById('yield-status');
+            status.textContent = "Loading...";
+            status.style.color = "black";
+            const dateStr = document.getElementById('date-input').value;
+            const res = await fetch('/get_plant_yield_params', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date_str: dateStr })
+            });
+            if (!res.ok) {
+                status.textContent = "Failed to get parameters!";
+                status.style.color = "red";
+                setTimeout(() => { status.textContent = ""; }, 3000);
+                return;
+            }
+            const params = await res.json();
+            status.textContent = "Yield loaded successfully!";
+            status.style.color = "green";
+            setTimeout(() => { status.textContent = ""; }, 3000);
+        });
+    </script>
+</body>
+</html>

@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for, session
 from app.get_plant_data import get_plant_data_with_live_power, get_live_active_power
 from app.shutdown import shutdown_plant, shutdown_plant_via_ems
-from app.fetch_data_from_mail import fetch_attachment
+from app.fetch_data_from_mail import fetch_attachment, update_trader_forecast_from_mail, send_forecast_to_trader
+from app.fetch_yield_data import fetch_yield_data
 
 from app.start import start_plant, start_plant_via_ems
 import pandas as pd
@@ -16,7 +17,7 @@ from apscheduler.triggers.cron import CronTrigger
 from zoneinfo import ZoneInfo 
 from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
-from app.models import db, User, Data, Plant, Price, Invertor, Device
+from app.models import db, User, Data, Plant, Price, Invertor, Device, Energy
 from app import create_app
 from sqlalchemy import or_
 
@@ -637,7 +638,147 @@ def delete_attachment(filename):
             return jsonify({"error": "File not found"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
 
+@app.route('/energy')
+@login_required
+def energy():
+    plants = Plant.query.order_by(Plant.name).all()
+    return render_template('energy.html', plants=plants)
+
+@app.route('/energy_data')
+@login_required
+def energy_data():
+    plant_id = request.args.get('plant_id', type=int)
+    date = request.args.get('date')
+    month = request.args.get('month')
+    query = Energy.query.filter(Energy.plant_id == plant_id)
+    if month:
+        # month format: YYYY-MM
+        query = query.filter(db.extract('year', Energy.date) == int(month[:4]))
+        query = query.filter(db.extract('month', Energy.date) == int(month[5:7]))
+    elif date:
+        query = query.filter(Energy.date == date)
+    results = query.order_by(Energy.date, Energy.start_period).all()
+    data = []
+    for row in results:
+        data.append({
+            "date": row.date.strftime("%Y-%m-%d"),
+            "start_period": row.start_period.strftime("%H:%M") if row.start_period else "",
+            "end_period": row.end_period.strftime("%H:%M") if row.end_period else "",
+            "duration_in_minutes": row.duration_in_minutes,
+            "trader_forecast": row.trader_forecast,
+            "producer_forecast": row.producer_forecast,
+            "yield_power": row.yield_power,
+            "exported": row.exported,
+            "price": row.price
+        })
+    return jsonify(data)
+
+@app.route('/energy_upload', methods=['POST'])
+@login_required
+def energy_upload():
+    file = request.files.get('file')
+    if not file:
+        return "Missing file", 400
+    df = pd.read_excel(file)
+    for _, row in df.iterrows():
+        ts = pd.to_datetime(row['timestamp'])
+        metering_point_name = str(row.get('metering_point_name', '')).strip()
+        plant_id = None
+        if metering_point_name == "ФтЕЦ Мaрикостеново":
+            plant_id = 12
+        elif metering_point_name == "ФтЕЦ Софрониево 3":
+            plant_id = 11
+        elif metering_point_name == "ФтЕЦ Ток Инвест Б9":
+            plant_id = 13
+        elif metering_point_name == "ФтЕЦ ТОК ИНВЕСТ - Бобораци 2":
+            plant_id = 8
+        elif metering_point_name == "ФЕЦ Нивянин":
+            plant_id = 9
+        elif metering_point_name == "ФЕЦ Борован 5":
+            plant_id = 10
+        elif metering_point_name == "ФЕЦ Мизия 2":
+            plant_id = 7
+        else:
+            continue
+
+        # Try to find existing entry
+        existing = Energy.query.filter_by(
+            date=ts.date(),
+            start_period=ts.time(),
+            plant_id=plant_id
+        ).first()
+        exported_kwh = round(row.get('quantity_mwh') * 1000, 2)  # convert MWh to kWh
+        if existing:
+            # Update only price and exported
+            existing.price = row.get('price_bgn')
+            existing.exported = exported_kwh
+        else:
+            # Insert new entry
+            energy = Energy(
+                date=ts.date(),
+                start_period=ts.time(),
+                end_period=(ts + pd.Timedelta(minutes=60)).time(),
+                duration_in_minutes=60,
+                trader_forecast=None,
+                producer_forecast=None,
+                yield_power=None,
+                exported=exported_kwh,
+                plant_id=plant_id,
+                price=row.get('price_bgn')
+            )
+            db.session.add(energy)
+    db.session.commit()
+    return "OK"
+
+@app.route('/get_plant_yield_params', methods=['POST'])
+@login_required
+def get_plant_yield_params():
+    data = request.get_json()
+    date_str = data.get('date_str')
+    if not date_str:
+        return jsonify({"error": "Missing date_str"}), 400
+    # Call the function to fetch and store yield data
+    fetch_yield_data(date_str)
+    # Optionally, return status or updated params
+    return jsonify({"success": True, "date_str": date_str})
+
+@app.route('/load_trader_forecast', methods=['POST'])
+@login_required
+def load_trader_forecast():
+    data = request.get_json()
+    plant_id = int(data.get('plant_id'))
+    date_str = data.get('date_str')
+    success = update_trader_forecast_from_mail(date_str, 3)
+    return jsonify({"success": success})
+
+
+@app.route('/save_producer_forecast', methods=['POST'])
+@login_required
+def save_producer_forecast():
+    data = request.get_json()
+    forecasts = data.get('forecasts', [])
+    tomorrow = (datetime.now() + timedelta(days=1)).date()
+    called_send = False
+    for item in forecasts:
+        date = item['date']
+        start_period = item['start_period']
+        plant_id = int(item['plant_id'])
+        producer_forecast = item['producer_forecast']
+        # Find and update the Energy record
+        energy = Energy.query.filter_by(
+            date=datetime.strptime(date, "%Y-%m-%d").date(),
+            start_period=datetime.strptime(start_period, "%H:%M").time(),
+            plant_id=plant_id
+        ).first()
+        if energy:
+            energy.producer_forecast = producer_forecast
+    db.session.commit()
+    if not called_send and datetime.strptime(date, "%Y-%m-%d").date() == tomorrow:
+        send_forecast_to_trader(3)
+        called_send = True
+    return jsonify({"success": True})
 
 if os.environ.get("FLASK_ENV") != "development":
     scheduler.start()

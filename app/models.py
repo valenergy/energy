@@ -129,3 +129,22 @@ class Device(db.Model):
 
     def __repr__(self):
         return f"<Device {self.device_name} ({self.device_sn})>"
+
+class Energy(db.Model):
+    __tablename__ = 'energy'
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False, index=True)
+    start_period = db.Column(db.Time, nullable=False)
+    end_period = db.Column(db.Time, nullable=False)
+    duration_in_minutes = db.Column(db.Integer, nullable=False)
+    trader_forecast = db.Column(db.Float)
+    producer_forecast = db.Column(db.Float)
+    yield_power = db.Column(db.Float)
+    exported = db.Column(db.Float)
+    plant_id = db.Column(db.Integer, db.ForeignKey('plants.id'), nullable=False, index=True)
+    price = db.Column(db.Float)  # <-- changed from price_id
+
+    plant = db.relationship('Plant', backref='energy')
+
+    def __repr__(self):
+        return f"<Energy {self.date} {self.start_period}-{self.end_period} Plant:{self.plant_id}>"
