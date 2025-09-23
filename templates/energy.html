@@ -60,7 +60,8 @@
                 <!-- Data rows will be inserted here -->
             </tbody>
         </table>
-        <button id="save-producer-forecast-btn" type="button" style="margin-bottom:10px;">Save and Send Forecast</button>
+        <button id="save-producer-forecast-btn" type="button" style="margin-bottom:10px;">Save Producer Forecast</button>
+        <button id="send-forecast-btn" type="button" style="margin-bottom:10px;">Send Forecast</button>
         <span id="save-status"></span>
         <div class="upload-row" style="margin-bottom: 30px;">
             <h2>Upload excel file from previous month</h2>
@@ -88,6 +89,7 @@
                 plantSelect.value = "3";
             }
             document.getElementById('save-producer-forecast-btn').style.display = "none";
+            document.getElementById('send-forecast-btn').style.display = "none";
         });
         document.getElementById('save-producer-forecast-btn').addEventListener('click', async function() {
             const status = document.getElementById('save-status');
@@ -107,19 +109,42 @@
             const res = await fetch('/save_producer_forecast', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ forecasts: dataToSave })
+                body: JSON.stringify({ forecasts: dataToSave, send: false })
             });
             if (res.ok) {
-                status.textContent = "Producer forecast saved and sent!";
+                status.textContent = "Producer forecast saved!";
                 status.style.color = "green";
                 setTimeout(() => { status.textContent = ""; }, 3000);
-                fetchEnergyData(); // Optionally refresh table
+                fetchEnergyData();
             } else {
-                status.textContent = "Failed to save or send!";
+                status.textContent = "Failed to save!";
                 status.style.color = "red";
                 setTimeout(() => { status.textContent = ""; }, 3000);
             }
         });
+
+        document.getElementById('send-forecast-btn').addEventListener('click', async function() {
+            const status = document.getElementById('save-status');
+            status.textContent = "Sending...";
+            status.style.color = "black";
+            const plantId = document.getElementById('plant-select').value;
+            const dateInput = document.getElementById('date-input').value;
+            const res = await fetch('/send_forecast_to_trader', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plant_id: plantId, date_str: dateInput })
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                status.textContent = "Forecast sent!";
+                status.style.color = "green";
+            } else {
+                status.textContent = result.error || "Failed to send!";
+                status.style.color = "red";
+            }
+            setTimeout(() => { status.textContent = ""; }, 3000);
+        });
+
         document.getElementById('energy-upload-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const form = e.target;
@@ -212,10 +237,13 @@
             });
                 // Show/hide Save button based on row count
             const saveBtn = document.getElementById('save-producer-forecast-btn');
+            const sendBtn = document.getElementById('send-forecast-btn');
             if (data.length > 0) {
                 saveBtn.style.display = "inline-block";
+                sendBtn.style.display = "inline-block";
             } else {
                 saveBtn.style.display = "none";
+                sendBtn.style.display = "none";
             }
         }
         document.getElementById('load-yield-btn').addEventListener('click', async function() {

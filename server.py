@@ -759,8 +759,6 @@ def load_trader_forecast():
 def save_producer_forecast():
     data = request.get_json()
     forecasts = data.get('forecasts', [])
-    tomorrow = (datetime.now() + timedelta(days=1)).date()
-    called_send = False
     for item in forecasts:
         date = item['date']
         start_period = item['start_period']
@@ -775,10 +773,23 @@ def save_producer_forecast():
         if energy:
             energy.producer_forecast = producer_forecast
     db.session.commit()
-    if not called_send and datetime.strptime(date, "%Y-%m-%d").date() == tomorrow:
-        send_forecast_to_trader(3)
-        called_send = True
     return jsonify({"success": True})
+
+@app.route('/send_forecast_to_trader', methods=['POST'])
+@login_required
+def send_forecast_to_trader_endpoint():
+    data = request.get_json()
+    plant_id = int(data.get('plant_id'))
+    plant_id = 3
+    date_str = data.get('date_str')  # Get the selected date from the request
+    # Calculate tomorrow's date
+    tomorrow = (datetime.now() + timedelta(days=1)).date()
+    # Only call send_forecast_to_trader if selected date is tomorrow
+    if date_str and datetime.strptime(date_str, "%Y-%m-%d").date() == tomorrow:
+        success, error = send_forecast_to_trader(plant_id)
+        return jsonify({"success": success, "error": error})
+    else:
+        return jsonify({"success": False, "error": "Can only send forecast for tomorrow"})
 
 if os.environ.get("FLASK_ENV") != "development":
     scheduler.start()

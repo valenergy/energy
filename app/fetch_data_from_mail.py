@@ -112,6 +112,9 @@ def send_forecast_to_trader(plant_id):
     energies = Energy.query.filter_by(date=tomorrow, plant_id=plant_id).order_by(Energy.start_period).all()
     data = []
     for idx, e in enumerate(energies):
+        # Check if producer_forecast is missing
+        if e.producer_forecast is None or str(e.producer_forecast).strip() == "":
+            return False, "Producer forecast is missing for one or more intervals. Please save all forecasts before sending."
         start_time = e.start_period.strftime("%H:%M")
         # For the last interval, set end_period to tomorrow + 1 day at 00:00
         if idx == len(energies) - 1:
@@ -158,11 +161,9 @@ def send_forecast_to_trader(plant_id):
                 [recipient, cc1, cc2],
                 msg.as_string()
             )
-        print("Email sent successfully.")
-        return True
+        return True, "Email sent successfully."
     except Exception as e:
-        print(f"Failed to send email: {e}")
-        return False
+        return False, "Email is not sent successfully."
     
 
 def update_trader_forecast_from_mail(date_str, plant_id):
