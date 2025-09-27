@@ -21,7 +21,7 @@ def fetch_yield_data(date_str):
             continue
         # Refresh tokens if expired
         if not company.access_token or (company.access_token_expires_at and company.access_token_expires_at < datetime.utcnow()):
-            refresh_result = refresh_tokens(company)
+            refresh_result = refresh_tokens(company.id)
             if "error" in refresh_result:
                 continue
         token = decrypt_token(company.access_token)
