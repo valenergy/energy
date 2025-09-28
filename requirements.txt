@@ -17,3 +17,4 @@ openpyxl
 cryptography
 pymodbus
 argon2-cffi
+setuptools
