@@ -15,7 +15,6 @@ import subprocess
 import atexit
 from apscheduler.triggers.cron import CronTrigger
 from zoneinfo import ZoneInfo 
-from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
 from app.models import db, User, Data, Plant, Price, Invertor, Device, Energy
 from app import create_app
@@ -33,6 +32,9 @@ import requests
 
 import csv
 from flask import jsonify
+
+from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
+from app.models import User, Role
 
 load_dotenv()
 # app = create_app()
@@ -56,17 +58,18 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
-# OIDC/OAuth2 config from your client_secrets.json
-oauth = OAuth(app)
-oauth.register(
-    name='my_oidc',
-    client_id='272861f3-a11f-4c50-8834-619bd97b578c',
-    client_secret='NitDw]q=YBPklrwUHQ=yk476m@_o121h',
-    server_metadata_url='https://iami047341.accounts.ondemand.com/.well-known/openid-configuration',
-    client_kwargs={
-        'scope': 'openid email profile'
-    }
-)
+app.config['SECURITY_PASSWORD_SALT'] = os.environ.get("SECURITY_PASSWORD_SALT")
+app.config['SECURITY_REGISTERABLE'] = True
+app.config['SECURITY_SEND_REGISTER_EMAIL'] = False
+app.config['SECURITY_UNAUTHORIZED_VIEW'] = '/login'
+app.config['SECURITY_PASSWORD_HASH'] = 'argon2'
+app.config['SECURITY_RECOVERABLE'] = True
+app.config['SECURITY_REGISTERABLE'] = False
+app.config['SECURITY_RECOVERABLE'] = False
+
+
+user_datastore = SQLAlchemyUserDatastore(db, User, Role)
+security = Security(app, user_datastore)
 
 
 def scheduled_download():
@@ -77,32 +80,6 @@ def scheduled_download():
         send_shutdown_notification()
 
 
-def login_required(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-@app.route('/login')
-def login():
-    redirect_uri = url_for('auth_callback', _external=True)
-    return oauth.my_oidc.authorize_redirect(redirect_uri)
-
-@app.route('/oidc_callback')
-def auth_callback():
-    token = oauth.my_oidc.authorize_access_token()
-    userinfo = oauth.my_oidc.userinfo()
-    session['user'] = userinfo
-    return redirect('/plants')
-
-@app.route('/logout')
-def logout():
-    session.pop('user', None)
-    return redirect('/')
-
 
 @app.route('/')
 def welcome():
@@ -111,7 +88,7 @@ def welcome():
 @app.route('/plants')
 @login_required
 def index():
-    user = session.get('user')
+    user = current_user
     server_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     return render_template('index.html', user=user, server_time=server_time)
 

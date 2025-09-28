@@ -1,4 +1,5 @@
 Flask==2.3.*
+Flask-Security-Too
 requests
 beautifulsoup4
 pandas
@@ -15,3 +16,4 @@ pyzmail36
 openpyxl
 cryptography
 pymodbus
+argon2-cffi

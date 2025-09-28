@@ -1,7 +1,23 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
+from flask_security import RoleMixin, UserMixin 
 
 db = SQLAlchemy()
+
+# Association table for users and roles
+roles_users = db.Table(
+    'roles_users',
+    db.Column('id', db.Integer, primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
+    db.Column('role_id', db.Integer, db.ForeignKey('roles.id', ondelete='CASCADE'), nullable=False),
+    db.UniqueConstraint('user_id', 'role_id', name='uq_roles_users_user_role')
+)
+
+class Role(db.Model, RoleMixin):
+    __tablename__ = 'roles'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), unique=True, nullable=False)
+    description = db.Column(db.String(255))
 
 class Company(db.Model):
     __tablename__ = 'companies'
@@ -17,12 +33,16 @@ class Company(db.Model):
     def __repr__(self):
         return f"<Company {self.name}>"
 
-class User(db.Model):
+class User(db.Model, UserMixin):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
-    email = db.Column(db.String)
+    email = db.Column(db.String, unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    active = db.Column(db.Boolean, default=True)
+    fs_uniquifier = db.Column(db.String(64), unique=True, nullable=False)
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
+    roles = db.relationship('Role', secondary=roles_users, backref=db.backref('users', lazy='dynamic'))
 
     def __repr__(self):
         return f"<User {self.name} ({self.email})>"
