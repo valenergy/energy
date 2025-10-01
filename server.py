@@ -5,6 +5,7 @@ from app.get_plant_data import get_plant_data_with_live_power, get_live_active_p
 from app.shutdown import shutdown_plant, shutdown_plant_via_ems
 from app.fetch_data_from_mail import update_trader_forecast_from_mail, send_forecast_to_trader
 from app.fetch_yield_data import fetch_yield_data
+from app.download_price import download_save_price
 
 from app.start import start_plant, start_plant_via_ems
 import pandas as pd
@@ -74,13 +75,8 @@ security = Security(app, user_datastore)
 
 
 def scheduled_download():
-    with app.app_context():
-        log_audit("scheduler", "Started price scheduled download job")
-        # Download new prices
-        subprocess.run(["python3", "./app/download_ibex.py"])
-        send_shutdown_notification()
-
-
+    log_audit("scheduler", "Started price scheduled download job")
+    download_save_price()
 
 @app.route('/')
 def welcome():
@@ -114,6 +110,7 @@ def pricelist_data():
                 {
                     "Date": price.date.strftime("%Y-%m-%d"),
                     "Hour": price.hour,
+                    "Delivery Period": price.delivery_period,
                     "Price (BGN)": price.price
                 }
                 for price in prices
@@ -124,8 +121,8 @@ def pricelist_data():
 
 @app.route('/download-ibex', methods=['POST'])
 def download_ibex():
-    result = run(["python3", "./app/download_ibex.py"], capture_output=True, text=True)
-    return result.stdout or result.stderr
+    result = download_save_price()
+    return jsonify({"status": "success", "message": result})
 
 
 def fetch_and_store_live_data():
@@ -165,7 +162,7 @@ def scheduled_live_data_job():
 scheduler = BackgroundScheduler(timezone=ZoneInfo("Europe/Sofia"))
 scheduler.add_job(
     scheduled_download,
-    CronTrigger(hour=14, minute=8, timezone=ZoneInfo("Europe/Sofia"))
+    CronTrigger(hour=14, minute=18, timezone=ZoneInfo("Europe/Sofia"))
 )
 scheduler.add_job(
     scheduled_live_data_job,

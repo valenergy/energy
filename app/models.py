@@ -107,6 +107,8 @@ class Price(db.Model):
     date = db.Column(db.Date, nullable=False, index=True)
     hour = db.Column(db.Integer, nullable=False, index=True)
     price = db.Column(db.Float, nullable=False)
+    product = db.Column(db.String(32))
+    delivery_period = db.Column(db.String(32))
 
     def __repr__(self):
         return f"<Price {self.date} h{self.hour} = {self.price}>"
