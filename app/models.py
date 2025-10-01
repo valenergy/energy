@@ -43,6 +43,11 @@ class User(db.Model, UserMixin):
     fs_uniquifier = db.Column(db.String(64), unique=True, nullable=False)
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'))
     roles = db.relationship('Role', secondary=roles_users, backref=db.backref('users', lazy='dynamic'))
+    last_login_at = db.Column(db.DateTime)
+    current_login_at = db.Column(db.DateTime)
+    last_login_ip = db.Column(db.String(64))
+    current_login_ip = db.Column(db.String(64))
+    login_count = db.Column(db.Integer, default=0)
 
     def __repr__(self):
         return f"<User {self.name} ({self.email})>"
