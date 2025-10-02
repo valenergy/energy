@@ -5,10 +5,10 @@ from app.models import db, Price
 
 def download_save_price(date_str=None):
     """
-    Download and save price data for a specific date (default: today).
+    Download and save price data for a specific date (default: tomorrow).
     """
     if date_str is None:
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
     rand = round(random.random(), 16)
     url = f"https://ibex.bg/Ext/SDAC_PROD/DAM_Page/api.php?action=get_data&date={date_str}&lang=bg&rand={rand}"
     headers = {

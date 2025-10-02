@@ -252,10 +252,11 @@
             status.textContent = "Loading...";
             status.style.color = "black";
             const dateStr = document.getElementById('date-input').value;
+            const plantId = document.getElementById('plant-select').value;
             const res = await fetch('/get_plant_yield_params', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date_str: dateStr })
+                body: JSON.stringify({ date_str: dateStr, plant_id: plantId })
             });
             if (!res.ok) {
                 status.textContent = "Failed to get parameters!";

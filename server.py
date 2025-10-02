@@ -600,10 +600,11 @@ def energy_upload():
 def get_plant_yield_params():
     data = request.get_json()
     date_str = data.get('date_str')
+    plant_id = int(data.get('plant_id'))
     if not date_str:
         return jsonify({"error": "Missing date_str"}), 400
     # Call the function to fetch and store yield data
-    fetch_yield_data(date_str)
+    fetch_yield_data(date_str, plant_id)
     # Optionally, return status or updated params
     return jsonify({"success": True, "date_str": date_str})
 
