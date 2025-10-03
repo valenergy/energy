@@ -248,7 +248,7 @@ def scheduled_shutdown_check():
             # Calculate current 15-min period (1-96)
         minutes_since_midnight = now_sofia.hour * 60 + now_sofia.minute
         period = minutes_since_midnight // 15 + 1  # periods are 1-based
-        period = period - 4 # periods are stored based on CET 
+        period = period - 3 # periods are stored based on CET 
         product = f"QH {period}"
         price_row = Price.query.filter_by(date=today, product=product).first()
         log_audit("scheduler", f"Shutdown check at {now_sofia.strftime('%Y-%m-%d %H:%M')} for product {product} and price {price_row.price if price_row else 'N/A'}")
@@ -299,9 +299,15 @@ def scheduled_start_check():
 
     with app.app_context():
         today = now_sofia.date()
+             # Calculate current 15-min period (1-96)
+        minutes_since_midnight = now_sofia.hour * 60 + now_sofia.minute
+        period = minutes_since_midnight // 15 + 1  # periods are 1-based
+        period = period - 3 # periods are stored based on CET 
+        product = f"QH {period}"
+        price_row = Price.query.filter_by(date=today, product=product).first()
+        log_audit("scheduler", f"Shutdown check at {now_sofia.strftime('%Y-%m-%d %H:%M')} for product {product} and price {price_row.price if price_row else 'N/A'}")
         plants = Plant.query.filter(Plant.min_price != None, Plant.status == "OFF").all()
         for plant in plants:
-            price_row = Price.query.filter_by(date=today, hour=current_hour+1).first()
             if not price_row:
                 continue
             log_audit("scheduler", f"Checking to start {plant.name} with price {price_row.price} against min_price {plant.min_price}")
