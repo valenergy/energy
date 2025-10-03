@@ -165,30 +165,7 @@ scheduler.add_job(
     scheduled_download,
     CronTrigger(hour=14, minute=20, timezone=ZoneInfo("Europe/Sofia"))
 )
-scheduler.add_job(
-    scheduled_live_data_job,
-    CronTrigger(
-        hour='5',
-        minute='45-59',
-        timezone=ZoneInfo("Europe/Sofia")
-    )
-)
-scheduler.add_job(
-    scheduled_live_data_job,
-    CronTrigger(
-        hour='6-20',
-        minute='*',
-        timezone=ZoneInfo("Europe/Sofia")
-    )
-)
-scheduler.add_job(
-    scheduled_live_data_job,
-    CronTrigger(
-        hour=21,
-        minute='0-25',
-        timezone=ZoneInfo("Europe/Sofia")
-    )
-)
+
 
 @app.route('/api/plants', methods=['GET'])
 def get_plants():
@@ -268,10 +245,16 @@ def scheduled_shutdown_check():
             Plant.min_price != None,
             Plant.status == "ON"
         ).all()
+            # Calculate current 15-min period (1-96)
+        minutes_since_midnight = now_sofia.hour * 60 + now_sofia.minute
+        period = minutes_since_midnight // 15 + 1  # periods are 1-based
+        period = period - 4 # periods are stored based on CET 
+        product = f"QH {period}"
+        price_row = Price.query.filter_by(date=today, product=product).first()
+        log_audit("scheduler", f"Shutdown check at {now_sofia.strftime('%Y-%m-%d %H:%M')} for product {product} and price {price_row.price if price_row else 'N/A'}")
+        if not price_row:
+            return
         for plant in plants:
-            price_row = Price.query.filter_by(date=today, hour=current_hour+1).first()
-            if not price_row:
-                continue
             log_audit("scheduler", f"Checking to shutdown {plant.name} with price {price_row.price} against min_price {plant.min_price}")
             if price_row.price < plant.min_price:
                 if not plant.hasBattery:
@@ -300,7 +283,7 @@ scheduler.add_job(
     scheduled_shutdown_check,
     CronTrigger(
         hour='6-21',
-        minute=58,
+        minute='13,28,43,58',
         timezone=ZoneInfo("Europe/Sofia")
     )
 )
@@ -347,7 +330,7 @@ scheduler.add_job(
     scheduled_start_check,
     CronTrigger(
         hour='6-21',
-        minute=59,
+        minute='14,29,44,59',
         timezone=ZoneInfo("Europe/Sofia")
     )
 )
