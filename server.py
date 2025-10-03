@@ -644,12 +644,12 @@ def save_producer_forecast():
 def send_forecast_to_trader_endpoint():
     data = request.get_json()
     plant_id = int(data.get('plant_id'))
-    plant_id = 3
     date_str = data.get('date_str')  # Get the selected date from the request
     # Calculate tomorrow's date
     tomorrow = (datetime.now() + timedelta(days=1)).date()
     # Only call send_forecast_to_trader if selected date is tomorrow
     if date_str and datetime.strptime(date_str, "%Y-%m-%d").date() == tomorrow:
+        print("Sending forecast to trader for plant_id:", plant_id, "date:", date_str)
         success, error = send_forecast_to_trader(plant_id)
         return jsonify({"success": success, "error": error})
     else:

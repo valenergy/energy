@@ -25,7 +25,16 @@ def send_forecast_to_trader(plant_id):
     cc2 = "h.bakalov@sig-solar.com"
     # Generate tomorrow's date
     tomorrow = (datetime.now() + timedelta(days=1)).date()
-    filename = f"DAM_Schedulle_M13_{tomorrow}.xlsx"
+    if plant_id == 3:
+        filename = f"DAM_Schedulle_M13_{tomorrow}.xlsx"
+        body = "ФЕЦ Ток Инвест М13 с ИТН 32Z140000228916V няма да работи при цена под 35.15лв"
+        subject = f"DAM Schedulle M13 {tomorrow}"
+    elif plant_id == 9:
+        filename = f"DAM_FORECAST_{tomorrow}.xlsx"
+        body = "ФЕЦ Нивянин с ИТН 32Z140000246950T няма да работи при цена под 35.15лв"
+        subject = f"DAM FORECAST {tomorrow}"
+    else:
+        return False, "Invalid plant"
 
     # Query Energy table for tomorrow's data for the plant
     energies = Energy.query.filter_by(date=tomorrow, plant_id=plant_id).order_by(Energy.start_period).all()
@@ -59,8 +68,7 @@ def send_forecast_to_trader(plant_id):
     msg['From'] = sender
     msg['To'] = recipient
     msg['Cc'] = f"{cc1}, {cc2}"
-    msg['Subject'] = f"DAM Schedulle M13 {tomorrow}"
-    body = "ФЕЦ Ток Инвест М13 с ИТН 32Z140000228916V няма да работи при цена под 35.15лв"
+    msg['Subject'] = subject
     msg.attach(MIMEText(body, 'plain'))
 
     # Attach the file from memory with correct MIME type
