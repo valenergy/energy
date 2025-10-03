@@ -305,7 +305,7 @@ def scheduled_start_check():
         period = period - 3 # periods are stored based on CET 
         product = f"QH {period}"
         price_row = Price.query.filter_by(date=today, product=product).first()
-        log_audit("scheduler", f"Shutdown check at {now_sofia.strftime('%Y-%m-%d %H:%M')} for product {product} and price {price_row.price if price_row else 'N/A'}")
+        log_audit("scheduler", f"Start check at {now_sofia.strftime('%Y-%m-%d %H:%M')} for product {product} and price {price_row.price if price_row else 'N/A'}")
         plants = Plant.query.filter(Plant.min_price != None, Plant.status == "OFF").all()
         for plant in plants:
             if not price_row:
