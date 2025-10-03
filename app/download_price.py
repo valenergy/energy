@@ -10,6 +10,7 @@ def download_save_price(date_str=None):
     if date_str is None:
         date_str = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
     rand = round(random.random(), 16)
+    print(f"Downloading prices for {date_str} with rand={rand}")
     url = f"https://ibex.bg/Ext/SDAC_PROD/DAM_Page/api.php?action=get_data&date={date_str}&lang=bg&rand={rand}"
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"

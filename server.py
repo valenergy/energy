@@ -75,8 +75,9 @@ security = Security(app, user_datastore)
 
 
 def scheduled_download():
-    log_audit("scheduler", "Started price scheduled download job")
-    download_save_price()
+    with app.app_context():
+        log_audit("scheduler", "Started price scheduled download job")
+        download_save_price()
 
 @app.route('/')
 def welcome():
@@ -162,7 +163,7 @@ def scheduled_live_data_job():
 scheduler = BackgroundScheduler(timezone=ZoneInfo("Europe/Sofia"))
 scheduler.add_job(
     scheduled_download,
-    CronTrigger(hour=14, minute=18, timezone=ZoneInfo("Europe/Sofia"))
+    CronTrigger(hour=14, minute=20, timezone=ZoneInfo("Europe/Sofia"))
 )
 scheduler.add_job(
     scheduled_live_data_job,
@@ -471,7 +472,6 @@ def plant_action_by_psid():
     else:
         invertors = Invertor.query.filter_by(plant_id=ps_id).all()
         device_ids = [inv.device_id for inv in invertors if inv.device_id]
-        print(f"Device IDs for ps_id {ps_id}: {device_ids}")
         if not device_ids:
             return "No device_ids found for this ps_id", 404
         if action == "shutdown":
@@ -614,8 +614,7 @@ def load_trader_forecast():
     data = request.get_json()
     plant_id = int(data.get('plant_id'))
     date_str = data.get('date_str')
-    print(f"Loading trader forecast for plant_id={plant_id}, date_str={date_str}")
-    success = update_trader_forecast_from_mail(date_str, 3)
+    success = update_trader_forecast_from_mail(date_str, plant_id)
     return jsonify({"success": success})
 
 

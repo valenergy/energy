@@ -13,6 +13,7 @@ from email.mime.base import MIMEBase
 from email import encoders
 from app.models import db, Energy
 import io
+import math
     
 
 def send_forecast_to_trader(plant_id):
@@ -91,7 +92,17 @@ def update_trader_forecast_from_mail(date_str, plant_id):
     email_pass = os.environ.get("MAIL_PASSWORD")
     date_obj = datetime.strptime(date_str, "%Y-%m-%d")
     next_day_str = (date_obj + timedelta(days=1)).strftime("%Y-%m-%d")
-    filename_pattern = f"DAM_Schedulle_M13_{next_day_str}"
+
+    # Set filename pattern based on plant_id
+    if plant_id == 3:
+        filename_pattern = f"DAM_Schedulle_M13_{next_day_str}"
+    elif plant_id == 9:
+        filename_pattern = f"DAM_FORECAST_{next_day_str}"
+    else:
+        filename_pattern = None  # Or handle other plant_ids as needed
+
+    if not filename_pattern:
+        return False  # No pattern for this plant_id
 
     with IMAPClient(imap_host) as server:
         server.login(email_user, email_pass)
@@ -111,6 +122,9 @@ def update_trader_forecast_from_mail(date_str, plant_id):
                         start_str = str(row['Start period'])
                         end_str = str(row['End period'])
                         forecast = row['Номиниран график (DA)']
+                        # If forecast is empty or NaN, store as 0
+                        if pd.isna(forecast) or forecast == "" or (isinstance(forecast, float) and math.isnan(forecast)):
+                            forecast = 0
                         start_dt = pd.to_datetime(start_str, dayfirst=True)
                         end_dt = pd.to_datetime(end_str, dayfirst=True)
                         # Find or create Energy entry
