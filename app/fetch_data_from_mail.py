@@ -30,7 +30,7 @@ def send_forecast_to_trader(plant_id):
         body = "ФЕЦ Ток Инвест М13 с ИТН 32Z140000228916V няма да работи при цена под 35.15лв"
         subject = f"DAM Schedulle M13 {tomorrow}"
     elif plant_id == 9:
-        filename = f"DAM_FORECAST_{tomorrow}.xlsx"
+        filename = f"DAM_FORECAST_NIVIANIN_{tomorrow}.xlsx"
         body = "ФЕЦ Нивянин с ИТН 32Z140000246950T няма да работи при цена под 35.15лв"
         subject = f"DAM FORECAST {tomorrow}"
     else:
@@ -105,7 +105,7 @@ def update_trader_forecast_from_mail(date_str, plant_id):
     if plant_id == 3:
         filename_pattern = f"DAM_Schedulle_M13_{next_day_str}"
     elif plant_id == 9:
-        filename_pattern = f"DAM_FORECAST_{next_day_str}"
+        filename_pattern = f"DAM_FORECAST_NIVIANIN_{next_day_str}"
     else:
         filename_pattern = None  # Or handle other plant_ids as needed
 
