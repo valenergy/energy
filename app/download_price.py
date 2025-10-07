@@ -20,10 +20,6 @@ def download_save_price(date_str=None):
     data = response.json()
 
     base_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-    # Remove existing prices for this date to avoid duplicates
-    Price.query.filter_by(date=base_date).delete()
-    Price.query.filter_by(date=base_date + timedelta(days=1)).delete()
-    db.session.commit()
 
     for idx, entry in enumerate(data.get("main_data", [])):
         delivery_period = entry.get("delivery_period", "")
