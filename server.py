@@ -37,11 +37,15 @@ from flask import jsonify
 from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
 from app.models import User, Role
 
+from app.routes import main
+from app.audit import log_audit
+
 load_dotenv()
 # app = create_app()
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.environ.get("SECRET_KEY")
+app.register_blueprint(main)
 
 # Force HTTPS redirect
 @app.before_request
@@ -205,30 +209,6 @@ def get_plant_data():
         for d in data
     ])
 
-@app.route('/data')
-@login_required
-def data_page():
-    return render_template('data.html')
-
-@app.route('/logs')
-@login_required
-def logs_page():
-    from app.models import AuditLog
-    logs = AuditLog.query.order_by(AuditLog.ts.desc()).limit(100).all()
-    # Convert timestamps to Sofia time
-    logs_with_sofia_time = []
-    for log in logs:
-        if log.ts.tzinfo is None:
-            # Assume UTC if no timezone info
-            ts_sofia = log.ts.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Europe/Sofia"))
-        else:
-            ts_sofia = log.ts.astimezone(ZoneInfo("Europe/Sofia"))
-        logs_with_sofia_time.append({
-            "ts": ts_sofia.strftime("%Y-%m-%d %H:%M:%S"),
-            "principal": log.principal,
-            "message": log.message
-        })
-    return render_template('logs.html', logs=logs_with_sofia_time)
 
 def scheduled_shutdown_check():
 
@@ -415,19 +395,7 @@ def send_shutdown_notification():
                     server.sendmail(sender, [trader.mail, cc_recipient], msg.as_string())
                 log_audit("scheduler", f"Notification email sent successfully to {trader.mail}")
             except Exception as e:
-                log_audit("scheduler", f"Failed to send notification email to {trader.mail}: {e}")
-    
-def log_audit(principal, message):
-    """Store an audit log entry in the audit_logs table."""
-    from app.models import AuditLog, db
-    from datetime import datetime
-    entry = AuditLog(
-        ts = datetime.now(ZoneInfo("Europe/Sofia")),
-        principal=principal,
-        message=message
-    )
-    db.session.add(entry)
-    db.session.commit()
+                log_audit("scheduler", f"Failed to send notification email to {trader.mail}: {e}")   
 
 
 @app.route('/plant-action-by-psid', methods=['POST'])
@@ -482,14 +450,6 @@ def plant_action_by_psid():
         f"Triggered {action} for plant with ps_id={ps_id}"
     )
     return f"{action.capitalize()} triggered", 200
-
-@app.route('/sungrow/callback', methods=['GET'])
-def sungrow_callback():
-    headers = dict(request.headers)
-    body = request.get_data(as_text=True)
-    message = f"Headers: {headers}\nBody: {body}"
-    log_audit("sungrow_callback", message)
-    return "Callback received", 200
 
 
 @app.route('/energy')

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Price Data</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    {% include 'nav.html' %}
+    <div class="container" style="max-width: 900px; margin: 0 auto;">
+        <form method="post" class="form-inline" style="margin-bottom: 24px;">
+            <label for="date" style="margin-right: 8px;">Date:</label>
+            <input type="date" id="date" name="date"
+                value="{{ selected_date or (now.strftime('%Y-%m-%d')) }}"
+                required style="margin-right: 8px;">
+            <button type="submit">Show Prices</button>
+        </form>
+        {% if prices %}
+            <h3>Prices for {{ selected_date }}</h3>
+            <div>
+                <canvas id="priceChart" height="120"></canvas>
+            </div>
+            <script>
+                const priceLabels = [
+                    {% for price in prices %}
+                        "{{ price.delivery_period }}",
+                    {% endfor %}
+                ];
+                const priceData = [
+                    {% for price in prices %}
+                        {{ price.price }},
+                    {% endfor %}
+                ];
+                const ctx = document.getElementById('priceChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: priceLabels,
+                        datasets: [{
+                            label: 'Price (BGN)',
+                            data: priceData,
+                            backgroundColor: 'rgba(25, 118, 210, 0.6)',
+                            borderColor: 'rgba(25, 118, 210, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: { title: { display: true, text: 'Delivery Period (HH:MM - HH:MM)' } },
+                            y: { title: { display: true, text: 'Price (BGN)' }, beginAtZero: true }
+                        }
+                    }
+                });
+            </script>
+            <div class="table-responsive">
+                <table border="1" style="width:100%; margin-top:20px;">
+                    <thead>
+                        <tr>
+                            <th>Hour</th>
+                            <th>Product</th>
+                            <th>Delivery Period</th>
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for price in prices %}
+                        <tr>
+                            <td>{{ price.hour }}</td>
+                            <td>{{ price.product }}</td>
+                            <td>{{ price.delivery_period }}</td>
+                            <td>{{ price.price }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% elif selected_date %}
+            <div style="margin-top: 16px; color: #b94a48;">
+                No price data found for {{ selected_date }}.
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
