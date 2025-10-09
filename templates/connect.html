@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Connect Plant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+{% include 'nav.html' %}
+    <div class="container" style="max-width: 500px; margin: 40px auto;">
+        <h2 class="connect-title">Connect Plant</h2>
+        <form method="post" class="connect-form" id="connectForm">
+            <label for="model" class="connect-label">Select Model:</label>
+            <select id="model" name="model" required class="connect-select">
+                <option value="" disabled selected>Select model</option>
+                <option value="Sungrow">Sungrow</option>
+                <option value="Huawei">Huawei</option>
+            </select>
+            <button type="submit" class="btn btn-primary connect-btn">Continue</button>
+        </form>
+        {% if selected_model %}
+            <div class="connect-selected">
+                <strong>You selected:</strong> {{ selected_model }}
+            </div>
+        {% endif %}
+    </div>
+    <script>
+        document.getElementById('connectForm').addEventListener('submit', function(e) {
+            var model = document.getElementById('model').value;
+            if (model === 'Sungrow') {
+                window.open(
+                    'https://web3.isolarcloud.eu/#/authorized-app?cloudId=3&applicationId=1692&redirectUrl=https://energy.bg/sungrow/callback',
+                    '_blank'
+                );
+            }
+            if (model === 'Huawei') {
+                window.open(
+                    'https://oauth2.fusionsolar.huawei.com/rest/dp/uidm/oauth2/v1/authorize?response_type=code&client_id=457745862&redirect_uri=https://energy.bg/huawei/callback',
+                    '_blank'
+                );
+            }
+        });
+    </script>
+</body>
+</html>

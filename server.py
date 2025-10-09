@@ -87,7 +87,7 @@ def scheduled_download():
 def welcome():
     return render_template('welcome.html')
 
-@app.route('/plants')
+@app.route('/plants1')
 @login_required
 def index():
     user = current_user
@@ -235,7 +235,6 @@ def scheduled_shutdown_check():
         if not price_row:
             return
         for plant in plants:
-            log_audit("scheduler", f"Checking to shutdown {plant.name} with price {price_row.price} against min_price {plant.min_price}")
             if price_row.price < plant.min_price:
                 if not plant.hasBattery:
                     # No battery: use current logic
@@ -290,7 +289,6 @@ def scheduled_start_check():
         for plant in plants:
             if not price_row:
                 continue
-            log_audit("scheduler", f"Checking to start {plant.name} with price {price_row.price} against min_price {plant.min_price}")
             if price_row.price > plant.min_price:
                 if not plant.hasBattery:
                     # No battery: use current logic

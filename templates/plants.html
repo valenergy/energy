@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Plants List</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'nav.html' %}
+    <div class="container" style="max-width: 900px; margin: 0 auto;">
+        <h1>Plants List</h1>
+        {% if min_price is defined and max_price is defined %}
+            <div class="price-box-row">
+                <div class="price-box min-price">
+                    <div class="price-title">Min Price Today</div>
+                    <div class="price-value">{{ min_price }} <span class="price-unit">BGN</span></div>
+                </div>
+                <div class="price-box max-price">
+                    <div class="price-title">Max Price Today</div>
+                    <div class="price-value">{{ max_price }} <span class="price-unit">BGN</span></div>
+                </div>
+                {% if min_price_tomorrow is defined and max_price_tomorrow is defined %}
+                <div class="price-box min-price">
+                    <div class="price-title">Min Price Tomorrow</div>
+                    <div class="price-value">{{ min_price_tomorrow }} <span class="price-unit">BGN</span></div>
+                </div>
+                <div class="price-box max-price">
+                    <div class="price-title">Max Price Tomorrow</div>
+                    <div class="price-value">{{ max_price_tomorrow }} <span class="price-unit">BGN</span></div>
+                </div>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if interval_prices is defined and interval_prices %}
+            <div class="interval-box-row">
+                <div class="interval-box prev-intervals">
+                    <div class="interval-title">Previous 4 Intervals</div>
+                    <div class="interval-list">
+                        {% for p in interval_prices.prev %}
+                            <div class="interval-item">
+                                <span class="interval-time">{{ p.time }}</span>:
+                                <span class="interval-price">{{ p.price }} <span class="price-unit">BGN</span></span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="interval-box next-intervals">
+                    <div class="interval-title">Next 4 Intervals</div>
+                    <div class="interval-list">
+                        {% for p in interval_prices.next %}
+                            <div class="interval-item">
+                                <span class="interval-time">{{ p.time }}</span>:
+                                <span class="interval-price">{{ p.price }} <span class="price-unit">BGN</span></span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        {% if plants and plants|length > 0 %}
+            <table border="1" style="width:100%; margin-top:20px;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>PS ID</th>
+                        <th>Installed Power</th>
+                        <th>Status</th>
+                        <th>Contract</th>
+                        <th>Current Power (kW)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plant in plants %}
+                    <tr>
+                        <td>{{ plant.id }}</td>
+                        <td>{{ plant.name }}</td>
+                        <td>{{ plant.plant_id }}</td>
+                        <td>{{ plant.installed_power }}</td>
+                        <td>{{ plant.status }}</td>
+                        <td>{{ plant.contract }}</td>
+                        <td>
+                            {{ power_map[plant.plant_id|string] if power_map[plant.plant_id|string] is defined else 'N/A' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr>
+                        <td colspan="3" style="text-align:right;"><strong>Total Installed Power:</strong></td>
+                        <td><strong>{{ total_power }}</strong></td>
+                        <td colspan="2" style="text-align:right;"><strong>Current Power:</strong></td>
+                        <td><strong>{{ total_current_power }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        {% else %}
+            <div style="margin-top:40px; text-align:center;">
+                <button onclick="window.location.href='/connect-plant'" class="btn btn-primary">Connect Plant</button>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

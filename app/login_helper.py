@@ -24,7 +24,7 @@ def decrypt_token(token):
 def refresh_tokens(company_id):
     company = Company.query.get(company_id)
     if not company or not company.refresh_token:
-        raise Exception("Company or refresh token not found")
+        return {"error": "Company or refresh token not found"}
     refresh_token = decrypt_token(company.refresh_token)
     payload = {
         "refresh_token": refresh_token,

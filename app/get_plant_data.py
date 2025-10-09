@@ -1,5 +1,52 @@
 import requests
+import os
+from app.login_helper import decrypt_token, refresh_tokens
 from app.models import Invertor
+from datetime import datetime
+
+def get_plants_current_power(company, plant_ids):
+    ACCESS_KEY = os.environ.get("ACCESS_KEY")
+    APP_KEY = os.environ.get("APP_KEY")
+
+    if not company:
+        return
+    # Refresh tokens if expired
+    if not company.access_token or (company.access_token_expires_at and company.access_token_expires_at < datetime.utcnow()):
+        refresh_result = refresh_tokens(company.id)
+        if "error" in refresh_result:
+            return
+
+    access_token = decrypt_token(company.access_token)
+
+
+
+    url = "https://gateway.isolarcloud.eu/openapi/platform/getPowerStationRealTimeData"
+    headers = {
+        "authorization": f"Bearer {access_token}",
+        "content-type": "application/json",
+        "x-access-key": ACCESS_KEY
+    }
+    payload = {
+        "is_get_point_dict": "1",
+        "point_id_list": ["83033"],
+        "ps_id_list": [str(pid) for pid in plant_ids],
+        "appkey": APP_KEY,
+        "lang": "_en_US"
+    }
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        data = response.json()
+        power_map = {}
+        for item in data.get("result_data", {}).get("device_point_list", []):
+            ps_id = str(item.get("ps_id"))
+            power_w = float(item.get("p83033", 0))
+            power_map[ps_id] = round(power_w / 1000, 2)  # kW
+        return power_map
+    except Exception as e:
+        print(f"Error fetching plant power: {e}")
+        return {}
+
 
 def get_plant_data():
     url = "https://gateway.isolarcloud.eu/openapi/getPowerStationList"
@@ -21,7 +68,6 @@ def get_plant_data():
 
     if response.status_code == 200:
         resp_json = response.json()
-        print(resp_json)
         stations = resp_json.get("result_data", {}).get("pageList", [])
         result = []
         for station in stations:
