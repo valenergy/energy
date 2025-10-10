@@ -90,3 +90,31 @@ def shutdown_plant_via_ems(ems_uuid, plant_id):
     except Exception as e:
         return {"error": str(e)}
 
+def shutdown_plant_via_device(uuid_str, plant_id):
+    print(f"Shutting down plant_id {plant_id} via device uuid {uuid_str}")
+    ACCESS_KEY = os.environ.get("ACCESS_KEY")
+    APP_KEY = os.environ.get("APP_KEY")
+    access_token = get_valid_access_token(Company.query.get(Plant.query.get(plant_id).company_id).id)
+    url = "https://gateway.isolarcloud.eu/openapi/platform/paramSetting"
+    headers = {
+        "authorization": f"Bearer {access_token}",
+        "content-type": "application/json",
+        "x-access-key": ACCESS_KEY
+    }
+    payload = {
+        "set_type": 0,
+        "uuid": uuid_str,
+        "task_name": "Shutdown",
+        "expire_second": 120,
+        "param_list": [
+            {
+                "param_code": 10011,
+                "set_value": "206"  # 206 for stop
+            }
+        ],
+        "appkey": APP_KEY,
+        "lang": "_en_US"
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    return response.json()
+

@@ -18,3 +18,4 @@ cryptography
 pymodbus
 argon2-cffi
 setuptools
+pytest

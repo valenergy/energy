@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
-from app.models import db, Price, Plant, Company, Trader
+from app.models import db, Price, Plant, Trader, Device, Invertor
 from datetime import datetime, timedelta
 from flask_security import login_required
 from zoneinfo import ZoneInfo
@@ -10,7 +10,8 @@ from flask_security import current_user
 import os
 import requests
 from app.get_device import get_and_store_devices
-
+from app.shutdown import shutdown_plant, shutdown_plant_via_ems, shutdown_plant_via_device
+from app.start import start_plant, start_plant_via_ems, start_plant_via_device
 main = Blueprint('main', __name__)
 
 @main.route('/')
@@ -85,6 +86,7 @@ def plants_page():
     plant_ids = [p.plant_id for p in plants]
     power_map = get_plants_current_power(plant_ids)
     total_current_power = sum(power_map[str(p.plant_id)] for p in plants if str(p.plant_id) in power_map)
+    total_current_power = round(total_current_power, 2)
 
     # Get today's prices
     today = datetime.now().date()
@@ -191,3 +193,67 @@ def saveplant():
 
     db.session.commit()
     return redirect(url_for('main.plants_page'))
+
+@main.route('/plant-action-by-psid', methods=['POST'])
+@login_required
+def plant_action_by_psid():
+    data = request.get_json()
+    ps_id = data.get('ps_id')
+    action = data.get('action')  # "shutdown" or "start"
+    if not ps_id or action not in ("shutdown", "start"):
+        return "Missing or invalid parameters", 400
+
+    plant = Plant.query.filter_by(id=ps_id).first()
+    if not plant:
+        return "Plant not found", 404
+
+    # If plant has battery, use EMS method
+    if plant.hasBattery:
+        ems_device = Device.query.filter_by(plant_id=plant.id, device_type=26).first()
+        if not ems_device:
+            return "EMS device not found for this plant", 404
+        if action == "shutdown":
+            result = shutdown_plant_via_ems(ems_device.uuid, plant.id)
+            if result and not result.get("error"):
+                plant.status = "OFF"
+                db.session.commit()
+        else:
+            result = start_plant_via_ems(ems_device.uuid, plant.id)
+            if result and not result.get("error"):
+                plant.status = "ON"
+                db.session.commit()
+    else:
+        invertors = Invertor.query.filter_by(plant_id=ps_id).all()
+        device_ids = [inv.device_id for inv in invertors if inv.device_id]
+        if not device_ids:
+            # Fallback: check devices table for device_type=1
+            devices = Device.query.filter_by(plant_id=plant.id, device_type=1).all()
+            device_uuids = [str(dev.uuid) for dev in devices if dev.uuid]
+            if not device_uuids:
+                return "No device_ids or device_uuids found for this plant", 404
+            uuid_str = ",".join(device_uuids)
+            if action == "shutdown":
+                result = shutdown_plant_via_device(uuid_str, plant.id)
+                if plant:
+                    plant.status = "OFF"
+                    db.session.commit()
+            else:
+                result = start_plant_via_device(uuid_str, plant.id)
+                if plant:
+                    plant.status = "ON"
+                    db.session.commit()
+        else:
+            if action == "shutdown":
+                result = shutdown_plant(device_ids)
+                if plant:
+                    plant.status = "OFF"
+                    db.session.commit()
+            else:
+                result = start_plant(device_ids)
+                if plant:
+                    plant.status = "ON"
+                    db.session.commit()
+
+    # Audit log
+    log_audit(current_user, f"Triggered {action} for plant with ps_id={ps_id}")
+    return f"{action.capitalize()} triggered", 200
