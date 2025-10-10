@@ -83,9 +83,6 @@ def scheduled_download():
         log_audit("scheduler", "Started price scheduled download job")
         download_save_price()
 
-@app.route('/')
-def welcome():
-    return render_template('welcome.html')
 
 @app.route('/plants1')
 @login_required
@@ -167,7 +164,7 @@ def scheduled_live_data_job():
 scheduler = BackgroundScheduler(timezone=ZoneInfo("Europe/Sofia"))
 scheduler.add_job(
     scheduled_download,
-    CronTrigger(hour=14, minute=20, timezone=ZoneInfo("Europe/Sofia"))
+    CronTrigger(hour=14, minute=40, timezone=ZoneInfo("Europe/Sofia"))
 )
 
 

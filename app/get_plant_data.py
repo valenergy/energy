@@ -1,24 +1,15 @@
 import requests
 import os
-from app.login_helper import decrypt_token, refresh_tokens
+from app.login_helper import get_valid_access_token
 from app.models import Invertor
 from datetime import datetime
+from flask_security import current_user
 
-def get_plants_current_power(company, plant_ids):
+def get_plants_current_power(plant_ids):
     ACCESS_KEY = os.environ.get("ACCESS_KEY")
     APP_KEY = os.environ.get("APP_KEY")
 
-    if not company:
-        return
-    # Refresh tokens if expired
-    if not company.access_token or (company.access_token_expires_at and company.access_token_expires_at < datetime.utcnow()):
-        refresh_result = refresh_tokens(company.id)
-        if "error" in refresh_result:
-            return
-
-    access_token = decrypt_token(company.access_token)
-
-
+    access_token = get_valid_access_token(current_user.company_id)
 
     url = "https://gateway.isolarcloud.eu/openapi/platform/getPowerStationRealTimeData"
     headers = {
@@ -40,8 +31,12 @@ def get_plants_current_power(company, plant_ids):
         power_map = {}
         for item in data.get("result_data", {}).get("device_point_list", []):
             ps_id = str(item.get("ps_id"))
-            power_w = float(item.get("p83033", 0))
-            power_map[ps_id] = round(power_w / 1000, 2)  # kW
+            power_val = item.get("p83033")
+            if power_val is not None:
+                power_w = float(power_val)
+                power_map[ps_id] = round(power_w / 1000, 2)  # kW
+            else:
+                power_map[ps_id] = 0  # or 0, if you prefer
         return power_map
     except Exception as e:
         print(f"Error fetching plant power: {e}")

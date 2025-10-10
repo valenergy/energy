@@ -60,8 +60,20 @@ def refresh_tokens(company_id):
         "expires_in": expires_in
     }
 
-def get_access_token(company_id):
+
+def get_valid_access_token(company_id):
     company = Company.query.get(company_id)
-    if company and company.access_token:
-        return decrypt_token(company.access_token)
-    return None
+    if not company or not company.access_token:
+        return None
+    now = datetime.now(ZoneInfo("Europe/Sofia"))
+    expires_at = company.access_token_expires_at
+    # Make expires_at timezone-aware if it's naive
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=ZoneInfo("Europe/Sofia"))
+    # If token is expired or missing expiry, refresh it
+    if not expires_at or expires_at < now:
+        result = refresh_tokens(company_id)
+        if "access_token" in result:
+            return result["access_token"]
+        return None
+    return decrypt_token(company.access_token)

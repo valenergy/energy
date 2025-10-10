@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add New Plant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    {% include 'nav.html' %}
+    <div class="container" style="max-width: 700px; margin: 40px auto;">
+        <h2>Add New Plant</h2>
+        {% if new_plants and new_plants|length > 0 %}
+            <form method="post" action="/saveplant">
+                <table style="width:100%; margin-bottom:24px;" border="1">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>ps_id</th>
+                            <th>Battery</th>
+                            <th>Trader</th>
+                            <th>Minimum Price</th>
+                            <th>Metering Point</th>
+                            <th>Select</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plant in new_plants %}
+                        <tr>
+                            <td>
+                                <input type="text" name="name_{{ plant.ps_id }}" value="{{ plant.ps_name }}">
+                            </td>
+                            <td>{{ plant.ps_id }}</td>
+                            <td style="text-align:center;">
+                                <input type="checkbox" name="battery_{{ plant.ps_id }}">
+                            </td>
+                            <td>
+                                <select name="trader_{{ plant.ps_id }}">
+                                    {% for trader in traders %}
+                                        <option value="{{ trader.id }}">{{ trader.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="number" step="0.01" name="min_price_{{ plant.ps_id }}" value="">
+                            </td>
+                            <td>
+                                <input type="text" name="metering_point_{{ plant.ps_id }}" value="">
+                            </td>
+                            <td>
+                                <input type="checkbox" name="plant_ids" value="{{ plant.ps_id }}">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <button type="submit" class="btn btn-primary">Save Selected Plants</button>
+            </form>
+        {% else %}
+            <div style="text-align:center; margin-top:40px;">
+                No new plants found.
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

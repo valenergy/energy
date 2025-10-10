@@ -1,4 +1,4 @@
-from app.login_helper import refresh_tokens, decrypt_token
+from app.login_helper import get_valid_access_token
 from app.models import Plant, Company, Energy, db
 import requests
 import os
@@ -18,17 +18,8 @@ def fetch_yield_data(date_str, plant_id):
     if not plant or not plant.plant_id:
         return
 
-    company = Company.query.get(plant.company_id)
-    if not company:
-        return
 
-    # Refresh tokens if expired
-    if not company.access_token or (company.access_token_expires_at and company.access_token_expires_at < datetime.utcnow()):
-        refresh_result = refresh_tokens(company.id)
-        if "error" in refresh_result:
-            return
-
-    access_token = decrypt_token(company.access_token)
+    access_token = get_valid_access_token(plant.company_id)
     ps_id = str(plant.plant_id)
 
     # 96 intervals of 15 minutes (24 hours * 4), 12 intervals per 3 hours

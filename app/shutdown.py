@@ -1,4 +1,4 @@
-from app.login_helper import refresh_tokens, decrypt_token
+from app.login_helper import get_valid_access_token
 from app.models import Plant, Company
 import requests
 import os
@@ -58,25 +58,11 @@ def shutdown_plant_via_ems(ems_uuid, plant_id):
     plant = Plant.query.get(plant_id)
     if not plant:
         return {"error": "Plant not found"}
-    company = Company.query.get(plant.company_id)
-    if not company or not company.access_token or not company.refresh_token:
-        return {"error": "Company or tokens not found"}
-
-    # Check if access token is expired or missing
-    now = datetime.now(ZoneInfo("Europe/Sofia"))
-    expires_at = company.access_token_expires_at
-    if expires_at and expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=ZoneInfo("Europe/Sofia"))
-    if not expires_at or expires_at < now:
-        refresh_result = refresh_tokens(company.id)
-        company = Company.query.get(plant.company_id)  # reload to get updated token
-
-    def get_access_token():
-        return decrypt_token(company.access_token)
+    access_token = get_valid_access_token(plant.company_id)
 
     url = "https://gateway.isolarcloud.eu/openapi/platform/paramSetting"
     headers = {
-        "authorization": f"Bearer {get_access_token()}",
+        "authorization": f"Bearer {access_token}",
         "content-type": "application/json",
         "x-access-key": ACCESS_KEY
     }
@@ -96,9 +82,8 @@ def shutdown_plant_via_ems(ems_uuid, plant_id):
         response = requests.post(url, headers=headers, json=payload)
         if response.status_code == 401:
             # Refresh token and retry
-            refresh_result = refresh_tokens(company.id)
-            company = Company.query.get(plant.company_id)  # reload to get updated token
-            headers["authorization"] = f"Bearer {decrypt_token(company.access_token)}"
+            access_token = get_valid_access_token(plant.company_id)
+            headers["authorization"] = f"Bearer {access_token}"
             response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
         return response.json()
