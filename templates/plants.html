@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Plants List</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
@@ -29,32 +30,6 @@
                     <div class="price-value">{{ max_price_tomorrow }} <span class="price-unit">BGN</span></div>
                 </div>
                 {% endif %}
-            </div>
-        {% endif %}
-        {% if interval_prices is defined and interval_prices %}
-            <div class="interval-box-row">
-                <div class="interval-box prev-intervals">
-                    <div class="interval-title">Previous 4 Intervals</div>
-                    <div class="interval-list">
-                        {% for p in interval_prices.prev %}
-                            <div class="interval-item">
-                                <span class="interval-time">{{ p.time }}</span>:
-                                <span class="interval-price">{{ p.price }} <span class="price-unit">BGN</span></span>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="interval-box next-intervals">
-                    <div class="interval-title">Next 4 Intervals</div>
-                    <div class="interval-list">
-                        {% for p in interval_prices.next %}
-                            <div class="interval-item">
-                                <span class="interval-time">{{ p.time }}</span>:
-                                <span class="interval-price">{{ p.price }} <span class="price-unit">BGN</span></span>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
             </div>
         {% endif %}
         {% if plants and plants|length > 0 %}

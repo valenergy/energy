@@ -16,7 +16,20 @@
                 value="{{ selected_date or (now.strftime('%Y-%m-%d')) }}"
                 required style="margin-right: 8px;">
             <button type="submit">Show Prices</button>
+            <button onclick="window.location.href='/download_ibex'" class="btn btn-secondary" style="margin-left:16px;">Download</button>
         </form>
+        {% if min_price is defined and max_price is defined %}
+            <div class="price-box-row">
+                <div class="price-box min-price">
+                    <div class="price-title">Min Price</div>
+                    <div class="price-value">{{ min_price }} <span class="price-unit">BGN</span></div>
+                </div>
+                <div class="price-box max-price">
+                    <div class="price-title">Max Price</div>
+                    <div class="price-value">{{ max_price }} <span class="price-unit">BGN</span></div>
+                </div>
+            </div>
+        {% endif %}
         {% if prices %}
             <h3>Prices for {{ selected_date }}</h3>
             <div>
@@ -33,6 +46,17 @@
                         {{ price.price }},
                     {% endfor %}
                 ];
+                const priceColors = [
+                    {% for price in prices %}
+                        {% if price.price < 25 %}
+                            "#ffd6d6",
+                        {% elif price.price < 36 %}
+                            "#ffe7c2",
+                        {% else %}
+                            "rgba(25, 118, 210, 0.6)",
+                        {% endif %}
+                    {% endfor %}
+                ];
                 const ctx = document.getElementById('priceChart').getContext('2d');
                 new Chart(ctx, {
                     type: 'bar',
@@ -41,7 +65,7 @@
                         datasets: [{
                             label: 'Price (BGN)',
                             data: priceData,
-                            backgroundColor: 'rgba(25, 118, 210, 0.6)',
+                            backgroundColor: priceColors,
                             borderColor: 'rgba(25, 118, 210, 1)',
                             borderWidth: 1
                         }]
@@ -68,16 +92,22 @@
                             <th>Price</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {% for price in prices %}
-                        <tr>
-                            <td>{{ price.hour }}</td>
-                            <td>{{ price.product }}</td>
-                            <td>{{ price.delivery_period }}</td>
-                            <td>{{ price.price }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
+                        <tbody>
+                            {% for price in prices %}
+                                <tr
+                                    {% if price.price < 25 %}
+                                        style="background-color:#ffd6d6; font-weight:bold;"
+                                    {% elif price.price < 36 %}
+                                        style="background-color:#ffe7c2; font-weight:bold;"
+                                    {% endif %}
+                                >
+                                <td>{{ price.hour }}</td>
+                                <td>{{ price.product }}</td>
+                                <td>{{ price.delivery_period }}</td>
+                                <td>{{ price.price }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
                 </table>
             </div>
         {% elif selected_date %}

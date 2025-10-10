@@ -22,12 +22,25 @@ def welcome():
 def price_page():
     prices = []
     selected_date = None
-    if request.method == 'POST':
+    if request.method == 'GET':
+        # Default to today's prices
+        date_obj = datetime.now().date()
+    else:
         selected_date = request.form.get('date')
-        if selected_date:
-            date_obj = datetime.strptime(selected_date, "%Y-%m-%d").date()
-            prices = Price.query.filter_by(date=date_obj).order_by(Price.hour).all()
-    return render_template('price.html', prices=prices, selected_date=selected_date, now=datetime.now())
+        date_obj = datetime.strptime(selected_date, "%Y-%m-%d").date()
+
+    prices = Price.query.filter_by(date=date_obj).order_by(Price.hour).all()
+        # Get min and max prices
+    min_price = min([p.price for p in prices]) if prices else None
+    max_price = max([p.price for p in prices]) if prices else None
+    return render_template(
+        'price.html', 
+        prices=prices, 
+        selected_date=selected_date, 
+        now=datetime.now(), 
+        min_price=min_price, 
+        max_price=max_price
+    )
 
 @main.route('/data')
 @login_required
@@ -83,31 +96,6 @@ def plants_page():
     min_price_tomorrow = min([p.price for p in prices_tomorrow]) if prices_tomorrow else None
     max_price_tomorrow = max([p.price for p in prices_tomorrow]) if prices_tomorrow else None
 
-    # Calculate current 15-min period (1-96) in Sofia time
-    now_sofia = datetime.now(ZoneInfo("Europe/Sofia"))
-    minutes_since_midnight = now_sofia.hour * 60 + now_sofia.minute
-    period = minutes_since_midnight // 15 + 1  # periods are 1-based
-    period = period - 4 # adjust for CET if needed
-    product = f"QH {period}"
-
-    # Find index of current product
-    product_list = [p.product for p in prices_today]
-    try:
-        current_idx = product_list.index(product)
-    except ValueError:
-        current_idx = 0
-
-    # Get previous 4 and next 4 prices
-    interval_prices = {
-        "prev": [
-            {"time": prices_today[i].delivery_period, "price": prices_today[i].price}
-            for i in range(max(0, current_idx-4), current_idx)
-        ],
-        "next": [
-            {"time": prices_today[i].delivery_period, "price": prices_today[i].price}
-            for i in range(current_idx+1, min(len(prices_today), current_idx+5))
-        ]
-    }
 
     return render_template(
         'plants.html',
@@ -118,8 +106,7 @@ def plants_page():
         min_price=min_price,
         max_price=max_price,
         min_price_tomorrow=min_price_tomorrow,
-        max_price_tomorrow=max_price_tomorrow,
-        interval_prices=interval_prices
+        max_price_tomorrow=max_price_tomorrow
     )
 
 @main.route('/connect-plant', methods=['GET', 'POST'])
