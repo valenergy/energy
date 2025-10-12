@@ -33,49 +33,53 @@
             </div>
         {% endif %}
         {% if plants and plants|length > 0 %}
-            <table border="1" style="width:100%; margin-top:20px;">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>PS ID</th>
-                        <th>Installed Power</th>
-                        <th>Status</th>
-                        <th>Contract</th>
-                        <th>Current Power (kW)</th>
-                        <th colspan="2">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for plant in plants %}
-                    <tr>
-                        <td>{{ plant.id }}</td>
-                        <td>{{ plant.name }}</td>
-                        <td>{{ plant.plant_id }}</td>
-                        <td>{{ plant.installed_power }}</td>
-                        <td>{{ plant.status }}</td>
-                        <td>{{ plant.contract }}</td>
-                        <td>
-                            {{ power_map[plant.plant_id|string] if power_map[plant.plant_id|string] is defined else 'N/A' }}
-                        </td>
-                        <td>
-                            <button class="btn btn-danger" onclick="plantAction('{{ plant.id }}', 'shutdown')">Shutdown</button>
-                        </td>
-                        <td>
-                            <button class="btn btn-success" onclick="plantAction('{{ plant.id }}', 'start')">Start</button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    <tr>
-                        <td colspan="3" style="text-align:right;"><strong>Total Installed Power:</strong></td>
-                        <td><strong>{{ total_power }}</strong></td>
-                        <td colspan="2" style="text-align:right;"><strong>Current Power:</strong></td>
-                        <td><strong>{{ total_current_power }}</strong></td>
-                        <td colspan="2"></td>
-                    </tr>
-                </tbody>
-            </table>
-            <button onclick="window.location.href='/addplant'" class="btn btn-secondary" style="margin-left:16px;">Add Plant</button>
+            <div class="table-responsive">
+                <table border="1" class="plants-table" style="width:100%; margin-top:20px;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>PS ID</th>
+                            <th>Installed Power</th>
+                            <th>Status</th>
+                            <th>Contract</th>
+                            <th>Minimum Price</th>
+                            <th>Current Power (kW)</th>
+                            <th colspan="3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plant in plants %}
+                        <tr>
+                            <td>{{ plant.id }}</td>
+                            <td>{{ plant.name }}</td>
+                            <td>{{ plant.plant_id }}</td>
+                            <td>{{ plant.installed_power }}</td>
+                            <td>{{ plant.status }}</td>
+                            <td>{{ plant.contract }}</td>
+                            <td>{{ plant.min_price }}</td>
+                            <td>
+                                {{ power_map[plant.plant_id|string] if power_map[plant.plant_id|string] is defined else 'N/A' }}
+                            </td>
+                            <td>
+                                <button class="btn btn-danger" onclick="plantAction('{{ plant.id }}', 'shutdown')">Shutdown</button>
+                            </td>
+                            <td>
+                                <button class="btn btn-success" onclick="plantAction('{{ plant.id }}', 'start')">Start</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        <tr>
+                            <td colspan="3" style="text-align:right;"><strong>Total Installed Power:</strong></td>
+                            <td><strong>{{ total_power }}</strong></td>
+                            <td colspan="3" style="text-align:right;"><strong>Current Power:</strong></td>
+                            <td><strong>{{ total_current_power }}</strong></td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <button onclick="window.location.href='/addplant'" class="btn btn-secondary" style="margin-left:16px; margin-top:8px;">Add Plant</button>
         {% else %}
             <div style="margin-top:40px; text-align:center;">
                 <button onclick="window.location.href='/connect-plant'" class="btn btn-primary">Connect Plant</button>

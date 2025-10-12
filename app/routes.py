@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
 from app.models import db, Price, Plant, Trader, Device, Invertor
 from datetime import datetime, timedelta
 from flask_security import login_required
@@ -255,5 +255,27 @@ def plant_action_by_psid():
                     db.session.commit()
 
     # Audit log
-    log_audit(current_user, f"Triggered {action} for plant with ps_id={ps_id}")
+    principal = getattr(current_user, "email", None) or getattr(current_user, "id", None) or str(current_user)
+    log_audit(principal, f"Triggered {action} for plant with ps_id={ps_id}")
     return f"{action.capitalize()} triggered", 200
+
+@main.route('/get-devices/<int:plant_id>', methods=['GET'])
+@login_required
+def get_devices(plant_id):
+    plant = Plant.query.get(plant_id)
+    if not plant:
+        flash("Plant not found")
+        return redirect(url_for('main.plants_page'))
+
+    access_token = get_valid_access_token(current_user.company_id)
+    if not access_token:
+        flash("No valid access token available")
+        return redirect(url_for('main.plants_page'))
+
+    try:
+        # plant.plant_id is the ps_id returned by external API
+        get_and_store_devices(plant.plant_id, plant.id, access_token)
+        flash("Devices fetched and stored")
+    except Exception as e:
+        flash(f"Error fetching devices: {e}")
+    return redirect(url_for('main.plants_page'))

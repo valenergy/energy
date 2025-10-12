@@ -69,7 +69,7 @@ def shutdown_plant_via_ems(ems_uuid, plant_id):
     payload = {
         "set_type": 0,
         "uuid": str(ems_uuid),
-        "task_name": "Start plant",
+        "task_name": "Shutdown plant",
         "expire_second": 120,
         "param_list": [
             {"param_code": 10086, "set_value": "4"},

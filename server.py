@@ -473,6 +473,8 @@ def energy_upload():
             plant_id = 9
         elif metering_point_name == "ФЕЦ Борован 5":
             plant_id = 10
+        elif metering_point_name == "ФЕЦ Ток инвест М13":
+            plant_id = 3
         elif metering_point_name == "ФЕЦ Мизия 2":
             plant_id = 7
         else:

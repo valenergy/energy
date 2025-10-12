@@ -416,3 +416,39 @@ tr:last-child td {
         padding-left: 0;
     }
 }
+
+/* make table horizontally scrollable on small screens */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* tighten button spacing for small screens */
+.plants-table .btn {
+    padding: 6px 8px;
+    font-size: 0.9rem;
+}
+
+/* hide less important columns on narrow viewports */
+@media (max-width: 700px) {
+    .plants-table thead th:nth-child(4),
+    .plants-table thead th:nth-child(6),
+    .plants-table tbody td:nth-child(4),
+    .plants-table tbody td:nth-child(6) {
+        display: none;
+    }
+
+    /* reduce padding and wrap long text */
+    .plants-table td, .plants-table th {
+        padding: 8px 6px;
+        white-space: nowrap;
+    }
+}
+
+/* optional: make actions appear stacked on very small screens */
+@media (max-width: 420px) {
+    .plants-table td:nth-last-child(-n+3) {
+        display: inline-block;
+        margin-right: 6px;
+    }
+}
