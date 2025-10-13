@@ -32,6 +32,14 @@
         {% endif %}
         {% if prices %}
             <h3>Prices for {{ selected_date }}</h3>
+
+            {# compute top 4 delivery_periods by price (highest) #}
+            {% set sorted_prices = prices|sort(attribute='price', reverse=True) %}
+            {% set top_periods = [] %}
+            {% for p in sorted_prices[:4] %}
+                {% set top_periods = top_periods + [p.delivery_period] %}
+            {% endfor %}
+
             <div>
                 <canvas id="priceChart" height="120"></canvas>
             </div>
@@ -43,20 +51,23 @@
                 ];
                 const priceData = [
                     {% for price in prices %}
-                        {{ price.price }},
+                        {{ price.price or 0 }},
                     {% endfor %}
                 ];
-                const priceColors = [
-                    {% for price in prices %}
-                        {% if price.price < 25 %}
-                            "#ffd6d6",
-                        {% elif price.price < 36 %}
-                            "#ffe7c2",
-                        {% else %}
-                            "rgba(25, 118, 210, 0.6)",
-                        {% endif %}
-                    {% endfor %}
-                ];
+
+                // compute top-4 indices by numeric value
+                const indexed = priceData.map((v,i) => ({ v: Number(v) || 0, i }));
+                indexed.sort((a,b) => b.v - a.v);
+                const topIndices = new Set(indexed.slice(0, 4).map(x => x.i));
+
+                const priceColors = priceData.map((v, i) => {
+                    const num = Number(v) || 0;
+                    if (topIndices.has(i)) return "#c8e6c9";
+                    if (num < 25) return "#ffd6d6";
+                    if (num < 36) return "#ffe7c2";
+                    return "rgba(25, 118, 210, 0.6)";
+                });
+
                 const ctx = document.getElementById('priceChart').getContext('2d');
                 new Chart(ctx, {
                     type: 'bar',
@@ -72,15 +83,31 @@
                     },
                     options: {
                         responsive: true,
-                        plugins: {
-                            legend: { display: false }
-                        },
+                        plugins: { legend: { display: false } },
                         scales: {
                             x: { title: { display: true, text: 'Delivery Period (HH:MM - HH:MM)' } },
                             y: { title: { display: true, text: 'Price (BGN)' }, beginAtZero: true }
                         }
                     }
                 });
+
+                // color the table rows (tbody rows in same order)
+                (function markTopRows() {
+                    const rows = document.querySelectorAll('.table-responsive table tbody tr');
+                    rows.forEach((tr, idx) => {
+                        if (topIndices.has(idx)) {
+                            tr.style.backgroundColor = "#c8e6c9";
+                            tr.style.fontWeight = "bold";
+                        } else {
+                            const cell = tr.querySelector('td:last-child');
+                            const val = cell ? Number(cell.textContent) : NaN;
+                            if (!Number.isNaN(val)) {
+                                if (val < 25) tr.style.backgroundColor = "#ffd6d6";
+                                else if (val < 36) tr.style.backgroundColor = "#ffe7c2";
+                            }
+                        }
+                    });
+                })();
             </script>
             <div class="table-responsive">
                 <table border="1" style="width:100%; margin-top:20px;">
@@ -95,7 +122,9 @@
                         <tbody>
                             {% for price in prices %}
                                 <tr
-                                    {% if price.price < 25 %}
+                                    {% if price.delivery_period in top_periods %}
+                                        style="background-color:#c8e6c9; font-weight:bold;"
+                                    {% elif price.price < 25 %}
                                         style="background-color:#ffd6d6; font-weight:bold;"
                                     {% elif price.price < 36 %}
                                         style="background-color:#ffe7c2; font-weight:bold;"

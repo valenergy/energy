@@ -20,7 +20,7 @@
 </head>
 <body>
     {% include 'nav.html' %}
-    <div class="container" style="max-width: 900px; margin: 0 auto;">
+    <div class="container" style="max-width: 1100px; margin: 0 auto;">
         <h1>Energy Data</h1>
         <div class="filter-row">
             <label for="plant-select">Plant:</label>
@@ -42,8 +42,13 @@
 
             <button id="load-trader-forecast-btn" type="button">Load Trader Forecast</button>
             <span id="trader-forecast-status"></span>
+
+            <button id="generate-forecast-btn" type="button">Generate Forecast</button>
+            <span id="generate-forecast-status"></span>
+            <button id="calculate-battery-btn" type="button">Calculate Battery</button>
+            <span id="calculate-battery-status"></span>
         </div>
-        <table id="energy-table">
+        <table id="energy-table" class="table-responsive">
             <thead>
                 <tr>
                     <th>Date</th>
@@ -52,6 +57,7 @@
                     <th>Duration (min)</th>
                     <th>Trader Forecast</th>
                     <th>Producer Forecast</th>
+                    <th>Irradiance</th>
                     <th>Yield</th>
                     <th>Exported</th>
                     <th>Price</th>
@@ -230,6 +236,7 @@
                     <td>${row.duration_in_minutes != null ? row.duration_in_minutes : ''}</td>
                     <td>${row.trader_forecast != null ? row.trader_forecast : ''}</td>
                     <td contenteditable="true" class="producer-forecast-cell" data-row="${idx}">${producerForecast}</td>
+                    <td>${row.irradiance != null ? row.irradiance + ' W/m²' : ''}</td>
                     <td>${row.yield_power != null ? row.yield_power : ''}</td>
                     <td>${row.exported != null ? row.exported : ''}</td>
                     <td>${row.price != null ? row.price : ''}</td>
@@ -268,6 +275,124 @@
             status.textContent = "Yield loaded successfully!";
             status.style.color = "green";
             setTimeout(() => { status.textContent = ""; }, 3000);
+        });
+        document.getElementById('generate-forecast-btn').addEventListener('click', async function() {
+            const status = document.getElementById('generate-forecast-status');
+            status.textContent = 'Generating...';
+            status.style.color = 'black';
+            const plantId = document.getElementById('plant-select').value;
+            const dateStr = document.getElementById('date-input').value;
+            const res = await fetch('/generate_forecast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plant_id: plantId, date_str: dateStr })
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (res.ok && payload.success) {
+                status.textContent = `Saved ${payload.count} points`;
+                status.style.color = 'green';
+                // refresh table to show irradiance
+                await fetchEnergyData();
+            } else {
+                status.textContent = payload.error || 'Failed to generate';
+                status.style.color = 'red';
+            }
+            setTimeout(() => { status.textContent = ''; }, 4000);
+        });
+
+        document.getElementById('calculate-battery-btn').addEventListener('click', function() {
+            const status = document.getElementById('calculate-battery-status');
+            status.textContent = 'Calculating...';
+            status.style.color = 'black';
+            const plantId = parseInt(document.getElementById('plant-select').value);
+
+            const rows = document.querySelectorAll('#energy-table-body tr');
+
+            if (plantId === 3) {
+                let sum = 0;
+                let found = false;
+                let periods = [];
+                rows.forEach(row => {
+                    const cells = row.children;
+                    const startPeriod = cells[1].textContent.trim();
+                    // Set 21.5 for periods between 19:30 and 21:15
+                    if (startPeriod >= "19:30" && startPeriod <= "21:15") {
+                        cells[5].textContent = "21.5";
+                    }
+                });
+                // Sum trader_forecast from 12:00 until sum reaches 405
+                for (let i = 0; i < rows.length; i++) {
+                    const cells = rows[i].children;
+                    const startPeriod = cells[1].textContent.trim();
+                    if (startPeriod >= "12:00") {
+                        let val = parseFloat(cells[5].textContent);
+                        if (!isNaN(val)) {
+                            sum += val;
+                            periods.push(i);
+                            if (sum >= 405 && !found) {
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (found && periods.length > 0) {
+                    let adjust = Math.round((sum - 240) / periods.length);
+                    for (let idx of periods) {
+                        const cells = rows[idx].children;
+                        cells[5].textContent = adjust;
+                    }
+                    status.textContent = 'Battery calculation applied for plant 7!';
+                    status.style.color = 'green';
+                } else {
+                    status.textContent = 'Not enough periods to reach 405!';
+                    status.style.color = 'orange';
+                }
+            } else if (plantId === 9) {
+                // Plant 9 logic
+                let sum = 0;
+                let found = false;
+                let periods = [];
+                rows.forEach(row => {
+                    const cells = row.children;
+                    const startPeriod = cells[1].textContent.trim();
+                    // Set 25 for periods between 19:30 and 21:15
+                    if (startPeriod >= "19:30" && startPeriod <= "21:15") {
+                        cells[5].textContent = "25";
+                    }
+                });
+                // Sum trader_forecast from 12:00 until sum reaches 220
+                for (let i = 0; i < rows.length; i++) {
+                    const cells = rows[i].children;
+                    const startPeriod = cells[1].textContent.trim();
+                    if (startPeriod >= "12:00") {
+                        let val = parseFloat(cells[5].textContent);
+                        if (!isNaN(val)) {
+                            sum += val;
+                            periods.push(i);
+                            if (sum >= 220 && !found) {
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (found && periods.length > 0) {
+                    for (let idx of periods) {
+                        const cells = rows[idx].children;
+                        cells[5].textContent = "0";
+                    }
+                    status.textContent = 'Battery calculation applied for plant 9!';
+                    status.style.color = 'green';
+                } else {
+                    status.textContent = 'Not enough periods to reach 220!';
+                    status.style.color = 'orange';
+                }
+            } else {
+                status.textContent = 'Battery calculation only for plant 7 or 9';
+                status.style.color = 'red';
+            }
+            setTimeout(() => { status.textContent = ''; }, 4000);
         });
     </script>
 </body>

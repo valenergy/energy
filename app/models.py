@@ -159,6 +159,9 @@ class Device(db.Model):
 
 class Energy(db.Model):
     __tablename__ = 'energy'
+    __table_args__ = (
+        db.Index('idx_energy_date_start_period_plant_id', 'date', 'start_period', 'plant_id'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False, index=True)
     start_period = db.Column(db.Time, nullable=False)
@@ -169,7 +172,8 @@ class Energy(db.Model):
     yield_power = db.Column(db.Float)
     exported = db.Column(db.Float)
     plant_id = db.Column(db.Integer, db.ForeignKey('plants.id'), nullable=False, index=True)
-    price = db.Column(db.Float)  # <-- changed from price_id
+    price = db.Column(db.Float)
+    irradiance = db.Column(db.Float)
 
     plant = db.relationship('Plant', backref='energy')
 
