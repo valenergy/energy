@@ -84,7 +84,7 @@ def plants_page():
     plants = Plant.query.filter_by(company_id=company_id).order_by(Plant.id).all()
     total_power = sum(p.installed_power or 0 for p in plants)
     plant_ids = [p.plant_id for p in plants]
-    power_map = get_plants_current_power(plant_ids)
+    power_map, battery_map = get_plants_current_power(plant_ids)
     total_current_power = sum(power_map[str(p.plant_id)] for p in plants if str(p.plant_id) in power_map)
     total_current_power = round(total_current_power, 2)
 
@@ -93,6 +93,17 @@ def plants_page():
     tomorrow = today + timedelta(days=1)
     prices_today = Price.query.filter_by(date=today).order_by(Price.hour).all()
     prices_tomorrow = Price.query.filter_by(date=tomorrow).order_by(Price.hour).all()
+
+    # Calculate current 15-min period (1-96) in Sofia time
+    now_sofia = datetime.now(ZoneInfo("Europe/Sofia"))
+    minutes_since_midnight = now_sofia.hour * 60 + now_sofia.minute
+    period = minutes_since_midnight // 15 + 1  # periods are 1-based
+    period = period - 4 # adjust for CET if needed
+    product = f"QH {period}"
+
+    current_price_entry = Price.query.filter_by(date=today, product=product).first()
+    current_price = current_price_entry.price if current_price_entry else None  
+
     min_price = min([p.price for p in prices_today]) if prices_today else None
     max_price = max([p.price for p in prices_today]) if prices_today else None
     min_price_tomorrow = min([p.price for p in prices_tomorrow]) if prices_tomorrow else None
@@ -104,11 +115,13 @@ def plants_page():
         plants=plants,
         total_power=total_power,
         power_map=power_map,
+        battery_map=battery_map,
         total_current_power=total_current_power,
         min_price=min_price,
         max_price=max_price,
         min_price_tomorrow=min_price_tomorrow,
-        max_price_tomorrow=max_price_tomorrow
+        max_price_tomorrow=max_price_tomorrow,
+        current_price=current_price
     )
 
 @main.route('/connect-plant', methods=['GET', 'POST'])
