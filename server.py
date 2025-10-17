@@ -654,6 +654,8 @@ def generate_forecast():
                 forecast = generate_forecast_for_miziya(val)
             elif int(plant_id) == 9:
                 forecast = generate_forecast_for_niviqnin(val)
+            elif int(plant_id) == 2:
+                forecast = generate_forecast_for_selanovci(val)
             else:
                 forecast = None
 

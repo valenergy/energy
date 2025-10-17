@@ -309,87 +309,177 @@
             const rows = document.querySelectorAll('#energy-table-body tr');
 
             if (plantId === 3) {
-                let sum = 0;
-                let found = false;
-                let periods = [];
+                // Step 1: Sum all producer forecast values
+                let total = 0;
+                let values = [];
                 rows.forEach(row => {
-                    const cells = row.children;
-                    const startPeriod = cells[1].textContent.trim();
+                    const val = parseFloat(row.children[5].textContent.trim());
+                    values.push(isNaN(val) ? 0 : val);
+                    total += isNaN(val) ? 0 : val;
+                });
+
+                if (total < 200) {
+                    // Set 0 for all periods before 19:30
+                    rows.forEach((row, idx) => {
+                        const startPeriod = row.children[1].textContent.trim();
+                        if (startPeriod < "19:30") {
+                            row.children[5].textContent = "0";
+                        }
+                    });
+                    // Distribute total from 19:30 onwards, max 21.5 per period
+                    let remaining = total;
+                    rows.forEach((row, idx) => {
+                        const startPeriod = row.children[1].textContent.trim();
+                        if (startPeriod >= "19:30") {
+                            if (remaining > 0) {
+                                let setVal = Math.min(21.5, remaining);
+                                row.children[5].textContent = setVal.toFixed(1);
+                                remaining -= setVal;
+                            } else {
+                                row.children[5].textContent = "0";
+                            }
+                        }
+                    });
+                } else {
+                    // Start from period 13:00, sum one ahead and one behind until reaching 200
+                    let sum = 0;
+                    let indices = [];
+                    // Find the index of the first period >= 13:00
+                    let startIdx = -1;
+                    for (let i = 0; i < rows.length; i++) {
+                        const startPeriod = rows[i].children[1].textContent.trim();
+                        if (startPeriod >= "13:00") {
+                            startIdx = i;
+                            break;
+                        }
+                    }
+                    if (startIdx !== -1) {
+                        // Expand from startIdx outwards
+                        let left = startIdx, right = startIdx+1;
+                        while ((left >= 0 || right < rows.length) && sum < 200) {
+                            // Add left
+                            if (left >= 0 && !indices.includes(left)) {
+                                let val = parseFloat(rows[left].children[5].textContent.trim());
+                                if (!isNaN(val)) {
+                                    sum += val;
+                                    indices.push(left);
+                                    if (sum >= 200) break;
+                                }
+                                left--;
+                            }
+                            // Add right
+                            if (right < rows.length && !indices.includes(right)) {
+                                let val = parseFloat(rows[right].children[5].textContent.trim());
+                                if (!isNaN(val)) {
+                                    sum += val;
+                                    indices.push(right);
+                                    if (sum >= 200) break;
+                                }
+                                right++;
+                            }
+                        }
+                        // Set 0 for these periods
+                        indices.forEach(idx => {
+                            rows[idx].children[5].textContent = "0";
+                        });
+                    }
                     // Set 21.5 for periods between 19:30 and 21:15
-                    if (startPeriod >= "19:30" && startPeriod <= "21:15") {
-                        cells[5].textContent = "21.5";
-                    }
-                });
-                // Sum trader_forecast from 12:00 until sum reaches 405
-                for (let i = 0; i < rows.length; i++) {
-                    const cells = rows[i].children;
-                    const startPeriod = cells[1].textContent.trim();
-                    if (startPeriod >= "12:00") {
-                        let val = parseFloat(cells[5].textContent);
-                        if (!isNaN(val)) {
-                            sum += val;
-                            periods.push(i);
-                            if (sum >= 405 && !found) {
-                                found = true;
-                                break;
-                            }
+                    rows.forEach(row => {
+                        const startPeriod = row.children[1].textContent.trim();
+                        if (startPeriod >= "19:30" && startPeriod <= "21:15") {
+                            row.children[5].textContent = "21.5";
                         }
-                    }
+                    });
                 }
-                if (found && periods.length > 0) {
-                    let adjust = Math.round((sum - 240) / periods.length);
-                    for (let idx of periods) {
-                        const cells = rows[idx].children;
-                        cells[5].textContent = adjust;
-                    }
-                    status.textContent = 'Battery calculation applied for plant 7!';
-                    status.style.color = 'green';
-                } else {
-                    status.textContent = 'Not enough periods to reach 405!';
-                    status.style.color = 'orange';
-                }
+                status.textContent = 'Battery calculation applied for plant Mizia 3!';
+                status.style.color = 'green';
             } else if (plantId === 9) {
-                // Plant 9 logic
-                let sum = 0;
-                let found = false;
-                let periods = [];
+                // Step 1: Sum all producer forecast values
+                let total = 0;
+                let values = [];
                 rows.forEach(row => {
-                    const cells = row.children;
-                    const startPeriod = cells[1].textContent.trim();
-                    // Set 25 for periods between 19:30 and 21:15
-                    if (startPeriod >= "19:30" && startPeriod <= "21:15") {
-                        cells[5].textContent = "25";
-                    }
+                    const val = parseFloat(row.children[5].textContent.trim());
+                    values.push(isNaN(val) ? 0 : val);
+                    total += isNaN(val) ? 0 : val;
                 });
-                // Sum trader_forecast from 12:00 until sum reaches 220
-                for (let i = 0; i < rows.length; i++) {
-                    const cells = rows[i].children;
-                    const startPeriod = cells[1].textContent.trim();
-                    if (startPeriod >= "12:00") {
-                        let val = parseFloat(cells[5].textContent);
-                        if (!isNaN(val)) {
-                            sum += val;
-                            periods.push(i);
-                            if (sum >= 220 && !found) {
-                                found = true;
-                                break;
+
+                if (total < 220) {
+                    // Set 0 for all periods before 19:30
+                    rows.forEach((row, idx) => {
+                        const startPeriod = row.children[1].textContent.trim();
+                        if (startPeriod < "19:30") {
+                            row.children[5].textContent = "0";
+                        }
+                    });
+                    // Distribute total from 19:30 onwards, max 21.5 per period
+                    let remaining = total;
+                    rows.forEach((row, idx) => {
+                        const startPeriod = row.children[1].textContent.trim();
+                        if (startPeriod >= "19:30") {
+                            if (remaining > 0) {
+                                let setVal = Math.min(25, remaining);
+                                row.children[5].textContent = setVal.toFixed(1);
+                                remaining -= setVal;
+                            } else {
+                                row.children[5].textContent = "0";
                             }
                         }
-                    }
-                }
-                if (found && periods.length > 0) {
-                    for (let idx of periods) {
-                        const cells = rows[idx].children;
-                        cells[5].textContent = "0";
-                    }
-                    status.textContent = 'Battery calculation applied for plant 9!';
-                    status.style.color = 'green';
+                    });
                 } else {
-                    status.textContent = 'Not enough periods to reach 220!';
-                    status.style.color = 'orange';
+                    // Start from period 13:00, sum one ahead and one behind until reaching 200
+                    let sum = 0;
+                    let indices = [];
+                    // Find the index of the first period >= 13:00
+                    let startIdx = -1;
+                    for (let i = 0; i < rows.length; i++) {
+                        const startPeriod = rows[i].children[1].textContent.trim();
+                        if (startPeriod >= "13:00") {
+                            startIdx = i;
+                            break;
+                        }
+                    }
+                    if (startIdx !== -1) {
+                        // Expand from startIdx outwards
+                        let left = startIdx, right = startIdx+1;
+                        while ((left >= 0 || right < rows.length) && sum < 200) {
+                            // Add left
+                            if (left >= 0 && !indices.includes(left)) {
+                                let val = parseFloat(rows[left].children[5].textContent.trim());
+                                if (!isNaN(val)) {
+                                    sum += val;
+                                    indices.push(left);
+                                    if (sum >= 220) break;
+                                }
+                                left--;
+                            }
+                            // Add right
+                            if (right < rows.length && !indices.includes(right)) {
+                                let val = parseFloat(rows[right].children[5].textContent.trim());
+                                if (!isNaN(val)) {
+                                    sum += val;
+                                    indices.push(right);
+                                    if (sum >= 220) break;
+                                }
+                                right++;
+                            }
+                        }
+                        // Set 0 for these periods
+                        indices.forEach(idx => {
+                            rows[idx].children[5].textContent = "0";
+                        });
+                    }
+                    // Set 21.5 for periods between 19:30 and 21:15
+                    rows.forEach(row => {
+                        const startPeriod = row.children[1].textContent.trim();
+                        if (startPeriod >= "19:30" && startPeriod <= "21:15") {
+                            row.children[5].textContent = "25";
+                        }
+                    });
                 }
+                status.textContent = 'Battery calculation applied for plant Nivianin!';
+                status.style.color = 'green';
             } else {
-                status.textContent = 'Battery calculation only for plant 7 or 9';
+                status.textContent = 'Battery calculation only for plant 3 or 9';
                 status.style.color = 'red';
             }
             setTimeout(() => { status.textContent = ''; }, 4000);
