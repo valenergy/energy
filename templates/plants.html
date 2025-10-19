@@ -43,10 +43,11 @@
                         <tr>
                             <th>ID</th>
                             <th>Name</th>
+                            <th>Make</th>
                             <th>PS ID</th>
                             <th>Installed Power</th>
                             <th>Status</th>
-                            <th>Contract</th>
+                            <th>Trader</th>
                             <th>Minimum Price</th>
                             <th>Current Power (kW)</th>
                             <th>Battery Power (kW)</th>
@@ -58,10 +59,11 @@
                         <tr>
                             <td>{{ plant.id }}</td>
                             <td>{{ plant.name }}</td>
+                            <td>{{ plant.make }}</td>
                             <td>{{ plant.plant_id }}</td>
                             <td>{{ plant.installed_power }}</td>
                             <td>{{ plant.status }}</td>
-                            <td>{{ plant.contract }}</td>
+                            <td>{{ plant.trader.name }}</td>
                             <td>{{ plant.min_price }}</td>
                             <td>
                                 {{ power_map[plant.plant_id|string] if power_map[plant.plant_id|string] is defined else 'N/A' }}
@@ -78,7 +80,7 @@
                         </tr>
                         {% endfor %}
                         <tr>
-                            <td colspan="3" style="text-align:right;"><strong>Total Installed Power:</strong></td>
+                            <td colspan="4" style="text-align:right;"><strong>Total Installed Power:</strong></td>
                             <td><strong>{{ total_power }}</strong></td>
                             <td colspan="3" style="text-align:right;"><strong>Current Power:</strong></td>
                             <td><strong>{{ total_current_power }}</strong></td>
@@ -90,7 +92,7 @@
             <button onclick="window.location.href='/addplant'" class="btn btn-secondary" style="margin-left:16px; margin-top:8px;">Add Plant</button>
         {% else %}
             <div style="margin-top:40px; text-align:center;">
-                <button onclick="window.location.href='/connect-plant'" class="btn btn-primary">Connect Plant</button>
+                <button onclick="window.location.href='/connect-plant'" class="btn btn-secondary">Connect Plant</button>
             </div>
         {% endif %}
         <div id="plant-action-status" style="text-align:center; margin:16px 0; color:#1976d2; font-weight:bold;"></div>

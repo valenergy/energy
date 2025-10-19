@@ -1,17 +1,21 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
-from app.models import db, Price, Plant, Trader, Device, Invertor
+from app.models import db, Price, Plant, Trader, Device, Invertor, Company
 from datetime import datetime, timedelta
 from flask_security import login_required
 from zoneinfo import ZoneInfo
 from app.audit import log_audit
 from app.get_plant_data import get_plants_current_power
-from app.login_helper import get_valid_access_token
+from app.login_helper import get_valid_access_token, encrypt_token, get_valid_access_token_huawei
 from flask_security import current_user
 import os
 import requests
-from app.get_device import get_and_store_devices
+from app.sungrow.get_device import get_and_store_devices
+from app.sungrow.get_plants import get_new_plants
 from app.shutdown import shutdown_plant, shutdown_plant_via_ems, shutdown_plant_via_device
 from app.start import start_plant, start_plant_via_ems, start_plant_via_device
+from app.huawei.get_plants import get_new_plants_huawei
+from app.huawei.get_devices import get_and_store_devices_huawei
+
 main = Blueprint('main', __name__)
 
 @main.route('/')
@@ -77,6 +81,52 @@ def sungrow_callback():
     log_audit("sungrow_callback", message)
     return "Callback received", 200
 
+@main.route('/huawei/callback', methods=['GET'])
+def huawei_callback():
+    code = request.args.get('code')
+    if not code:
+        return "Missing code parameter", 400
+
+    client_id = os.environ.get("HUAWEI_CLIENT_ID")
+    client_secret = os.environ.get("HUAWEI_CLIENT_SECRET")
+    redirect_uri = "https://energy.bg/huawei/callback"
+
+    token_url = "https://oauth2.fusionsolar.huawei.com/rest/dp/uidm/oauth2/v1/token"
+    headers = {'content-type': 'application/x-www-form-urlencoded'}
+    data = {
+        'grant_type': 'authorization_code',
+        'code': code,
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'redirect_uri': redirect_uri
+    }
+
+    response = requests.post(token_url, headers=headers, data=data)
+    response.raise_for_status()
+    resp_json = response.json()
+
+    access_token = resp_json.get('access_token')
+    refresh_token = resp_json.get('refresh_token')
+    expires_in = resp_json.get('expires_in')
+
+    if not (access_token and refresh_token and expires_in):
+        return "Invalid response from Huawei", 400
+
+    # Calculate expiration datetime
+    expires_at = datetime.utcnow() + timedelta(seconds=int(expires_in))
+
+    encrypted_access_token = encrypt_token(access_token)
+    encrypted_refresh_token = encrypt_token(refresh_token)
+
+    company = Company.query.get(current_user.company_id)
+    if company:
+        company.huawei_access_token = encrypted_access_token
+        company.huawei_refresh_token = encrypted_refresh_token
+        company.huawei_expires_at = expires_at
+        db.session.commit()
+
+    return redirect(url_for('main.addplant'))
+
 @main.route('/plants')
 @login_required
 def plants_page():
@@ -136,37 +186,12 @@ def connect_plant():
 @main.route('/addplant')
 @login_required
 def addplant():
-    # Get company and tokens
-    access_token = get_valid_access_token(current_user.company_id)
-
-    ACCESS_KEY = os.environ.get("ACCESS_KEY")
-    APP_KEY = os.environ.get("APP_KEY")
-
-    url = "https://gateway.isolarcloud.eu/openapi/platform/queryPowerStationList"
-    headers = {
-        "authorization": f"Bearer {access_token}",
-        "content-type": "application/json",
-        "x-access-key": ACCESS_KEY
-    }
-    payload = {
-        "page": 1,
-        "size": 100,
-        "appkey": APP_KEY,
-        "lang": "_en_US"
-    }
-    response = requests.post(url, headers=headers, json=payload)
-    response.raise_for_status()
-    data = response.json()
-    new_plants = []
-    # Get all plant_ids from DB
-    existing_ids = {str(p.plant_id) for p in Plant.query.all()}
-    # Check for new plants
-    for plant in data.get("result_data", {}).get("pageList", []):
-        if str(plant["ps_id"]) not in existing_ids:
-            new_plants.append(plant)
-    if new_plants:
+    new_plants = get_new_plants(current_user.company_id)
+    new_plants_huawei = get_new_plants_huawei(current_user.company_id)
+    all_new_plants = new_plants + new_plants_huawei
+    if all_new_plants:
         traders = Trader.query.all()
-        return render_template('newplant.html', new_plants=new_plants, traders=traders)
+        return render_template('newplant.html', new_plants=all_new_plants, traders=traders)
     else:
         # No new plants found, redirect back or show message
         return render_template('plants.html', message="No new plants available to add.")
@@ -178,20 +203,25 @@ def saveplant():
     if not plant_ids:
         return redirect(url_for('addplant'))
 
-    access_token = get_valid_access_token(current_user.company_id)
-
     for ps_id in plant_ids:
         name = request.form.get(f'name_{ps_id}')
         battery = True if request.form.get(f'battery_{ps_id}') == 'on' else False
         trader_id = request.form.get(f'trader_{ps_id}')
         min_price = request.form.get(f'min_price_{ps_id}')
         metering_point = request.form.get(f'metering_point_{ps_id}')
-
+        installed_power = request.form.get(f'installed_power_{ps_id}')
+        make = request.form.get(f'make_{ps_id}')
+        location = request.form.get(f'location_{ps_id}')
+        if min_price == "":
+            min_price = None
         # Create and save new Plant
         new_plant = Plant(
             plant_id=ps_id,
             name=name,
             hasBattery=battery,
+            installed_power=installed_power,
+            make=make,
+            location=location,
             trader_id=trader_id,
             min_price=min_price,
             metering_point=metering_point,
@@ -200,9 +230,12 @@ def saveplant():
         )
         db.session.add(new_plant)
         db.session.flush()  # Get new_plant.id before commit
-
-        # Call get_and_store_devices with ps_id and new_plant.id
-        get_and_store_devices(ps_id, new_plant.id, access_token)
+        if make == "SUNGROW":
+            access_token = get_valid_access_token(current_user.company_id)
+            get_and_store_devices(ps_id, new_plant.id, access_token)
+        if make == "HUAWEI":
+            access_token = get_valid_access_token_huawei(current_user.company_id)
+            get_and_store_devices_huawei(ps_id, new_plant.id, access_token)
 
     db.session.commit()
     return redirect(url_for('main.plants_page'))

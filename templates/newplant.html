@@ -7,7 +7,7 @@
 </head>
 <body>
     {% include 'nav.html' %}
-    <div class="container" style="max-width: 700px; margin: 40px auto;">
+    <div class="container" style="max-width: 1200px; margin: 40px auto;">
         <h2>Add New Plant</h2>
         {% if new_plants and new_plants|length > 0 %}
             <form method="post" action="/saveplant">
@@ -15,7 +15,10 @@
                     <thead>
                         <tr>
                             <th>Name</th>
+                            <th>Make</th>
                             <th>ps_id</th>
+                            <th>Installed power</th>
+                            <th>Location</th>
                             <th>Battery</th>
                             <th>Trader</th>
                             <th>Minimum Price</th>
@@ -29,7 +32,19 @@
                             <td>
                                 <input type="text" name="name_{{ plant.ps_id }}" value="{{ plant.ps_name }}">
                             </td>
+                            <td>
+                                <input type="hidden" name="make_{{ plant.ps_id }}" value="{{ plant.make }}">
+                                {{ plant.make }}
+                            </td>
                             <td>{{ plant.ps_id }}</td>
+                            <td>
+                                <input type="hidden" name="installed_power_{{ plant.ps_id }}" value="{{ plant.installed_power }}">
+                                {{ plant.installed_power if plant.installed_power is defined else 'N/A' }}
+                            </td>
+                            <td>
+                                <input type="hidden" name="location_{{ plant.ps_id }}" value="latitude={{ plant.latitude }}&longitude={{ plant.longitude }}">
+                                latitude={{ plant.latitude }}&longitude={{ plant.longitude }}
+                            </td>
                             <td style="text-align:center;">
                                 <input type="checkbox" name="battery_{{ plant.ps_id }}">
                             </td>
@@ -53,7 +68,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
-                <button type="submit" class="btn btn-primary">Save Selected Plants</button>
+                <button type="submit" class="btn btn-secondary">Save Selected Plants</button>
             </form>
         {% else %}
             <div style="text-align:center; margin-top:40px;">

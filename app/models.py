@@ -29,6 +29,9 @@ class Company(db.Model):
     refresh_token = db.Column(db.String(512))
     access_token = db.Column(db.String(512))
     access_token_expires_at = db.Column(db.DateTime)
+    huawei_refresh_token = db.Column(db.String(512))
+    huawei_access_token = db.Column(db.String(512))
+    huawei_expires_at = db.Column(db.DateTime)
 
     def __repr__(self):
         return f"<Company {self.name}>"
@@ -58,7 +61,7 @@ class Plant(db.Model):
     name = db.Column(db.String(128), nullable=False)
     installed_power = db.Column(db.Float)
     location = db.Column(db.String(256))
-    contract = db.Column(db.String(128))
+    make = db.Column(db.String(128))
     status = db.Column(db.String(64))
     plant_id = db.Column(db.String(64))
     num_invertors = db.Column(db.Integer)
