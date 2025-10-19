@@ -33,9 +33,8 @@ def get_and_store_devices_huawei(ps_id, plant_id, access_token):
             device_type=dev_type_id,
             device_model_code=dev.get("model"),
             device_name=dev.get("devName"),
-            device_sn=dev.get("devDn"),
-            uuid=dev.get("id"),
-            ps_id=dev.get("stationCode")
+            ps_key=dev.get("devDn"),
+            device_sn=dev.get("id")
         )
         db.session.add(device)
     db.session.commit()

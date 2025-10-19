@@ -132,9 +132,10 @@ def huawei_callback():
 def plants_page():
     company_id = current_user.company_id
     plants = Plant.query.filter_by(company_id=company_id).order_by(Plant.id).all()
+    plants_sungrow = [p for p in plants if p.make == "SUNGROW"]
+    plant_ids_sungrow = [p.plant_id for p in plants_sungrow]
+    power_map, battery_map = get_plants_current_power(plant_ids_sungrow)
     total_power = sum(p.installed_power or 0 for p in plants)
-    plant_ids = [p.plant_id for p in plants]
-    power_map, battery_map = get_plants_current_power(plant_ids)
     total_current_power = sum(power_map[str(p.plant_id)] for p in plants if str(p.plant_id) in power_map)
     total_current_power = round(total_current_power, 2)
 
