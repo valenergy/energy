@@ -575,19 +575,19 @@ def send_forecast_to_trader_endpoint():
 def generate_forecast_for_miziya(irradiance):
     if irradiance is None:
         return None
-    return round(irradiance * 1032 * 0.21 * 0.97 / 1000 / 4, 0)
+    return round(irradiance * 1032 * 0.21 * 0.97 / 1000, 0)
 
 def generate_forecast_for_niviqnin(irradiance):
     # For Niviqnin: irradiance * 567 * 0.21 * 0.97 / 1000 / 4
     if irradiance is None:
         return None
-    return round(irradiance * 567 * 0.21 * 0.97 / 1000 / 4, 0)
+    return round(irradiance * 567 * 0.21 * 0.97 / 1000, 0)
 
 def generate_forecast_for_selanovci(irradiance):
     # For Selanovci: irradiance * 999 * 0.21 * 0.97 / 1000 / 4
     if irradiance is None:
         return None
-    return round(irradiance * 999 * 0.21 * 0.97 / 1000 / 4, 0)
+    return round(irradiance * 999 * 0.21 * 0.97 / 1000, 0)
 
 @app.route('/generate_forecast', methods=['POST'])
 @login_required

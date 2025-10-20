@@ -318,7 +318,7 @@
                     total += isNaN(val) ? 0 : val;
                 });
 
-                if (total < 200) {
+                if (total < 800) {
                     // Set 0 for all periods before 19:30
                     rows.forEach((row, idx) => {
                         const startPeriod = row.children[1].textContent.trim();
@@ -332,7 +332,7 @@
                         const startPeriod = row.children[1].textContent.trim();
                         if (startPeriod >= "19:30") {
                             if (remaining > 0) {
-                                let setVal = Math.min(21.5, remaining);
+                                let setVal = Math.min(86, remaining);
                                 row.children[5].textContent = setVal.toFixed(1);
                                 remaining -= setVal;
                             } else {
@@ -356,14 +356,14 @@
                     if (startIdx !== -1) {
                         // Expand from startIdx outwards
                         let left = startIdx, right = startIdx+1;
-                        while ((left >= 0 || right < rows.length) && sum < 200) {
+                        while ((left >= 0 || right < rows.length) && sum < 800) {
                             // Add left
                             if (left >= 0 && !indices.includes(left)) {
                                 let val = parseFloat(rows[left].children[5].textContent.trim());
                                 if (!isNaN(val)) {
                                     sum += val;
                                     indices.push(left);
-                                    if (sum >= 200) break;
+                                    if (sum >= 800) break;
                                 }
                                 left--;
                             }
@@ -373,7 +373,7 @@
                                 if (!isNaN(val)) {
                                     sum += val;
                                     indices.push(right);
-                                    if (sum >= 200) break;
+                                    if (sum >= 800) break;
                                 }
                                 right++;
                             }
@@ -387,7 +387,7 @@
                     rows.forEach(row => {
                         const startPeriod = row.children[1].textContent.trim();
                         if (startPeriod >= "19:30" && startPeriod <= "21:15") {
-                            row.children[5].textContent = "21.5";
+                            row.children[5].textContent = "86";
                         }
                     });
                 }
@@ -403,7 +403,7 @@
                     total += isNaN(val) ? 0 : val;
                 });
 
-                if (total < 220) {
+                if (total < 880) {
                     // Set 0 for all periods before 19:30
                     rows.forEach((row, idx) => {
                         const startPeriod = row.children[1].textContent.trim();
@@ -417,7 +417,7 @@
                         const startPeriod = row.children[1].textContent.trim();
                         if (startPeriod >= "19:30") {
                             if (remaining > 0) {
-                                let setVal = Math.min(25, remaining);
+                                let setVal = Math.min(100, remaining);
                                 row.children[5].textContent = setVal.toFixed(1);
                                 remaining -= setVal;
                             } else {
@@ -441,14 +441,14 @@
                     if (startIdx !== -1) {
                         // Expand from startIdx outwards
                         let left = startIdx, right = startIdx+1;
-                        while ((left >= 0 || right < rows.length) && sum < 200) {
+                        while ((left >= 0 || right < rows.length) && sum < 880) {
                             // Add left
                             if (left >= 0 && !indices.includes(left)) {
                                 let val = parseFloat(rows[left].children[5].textContent.trim());
                                 if (!isNaN(val)) {
                                     sum += val;
                                     indices.push(left);
-                                    if (sum >= 220) break;
+                                    if (sum >= 880) break;
                                 }
                                 left--;
                             }
@@ -458,7 +458,7 @@
                                 if (!isNaN(val)) {
                                     sum += val;
                                     indices.push(right);
-                                    if (sum >= 220) break;
+                                    if (sum >= 880) break;
                                 }
                                 right++;
                             }
@@ -472,7 +472,7 @@
                     rows.forEach(row => {
                         const startPeriod = row.children[1].textContent.trim();
                         if (startPeriod >= "19:30" && startPeriod <= "21:15") {
-                            row.children[5].textContent = "25";
+                            row.children[5].textContent = "100";
                         }
                     });
                 }
