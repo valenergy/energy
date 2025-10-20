@@ -24,6 +24,10 @@ def get_and_store_devices(ps_id, plant_id, access_token):
     data = response.json()
     devices = data.get("result_data", {}).get("pageList", [])
     for d in devices:
+        # Check if device exists by plant_id and uuid
+        existing_device = Device.query.filter_by(plant_id=plant_id, uuid=d.get("uuid")).first()
+        if existing_device:
+            continue
         device = Device(
             plant_id=plant_id,
             ps_id=d.get("ps_id"),

@@ -15,6 +15,7 @@ from app.shutdown import shutdown_plant, shutdown_plant_via_ems, shutdown_plant_
 from app.start import start_plant, start_plant_via_ems, start_plant_via_device
 from app.huawei.get_plants import get_new_plants_huawei
 from app.huawei.get_devices import get_and_store_devices_huawei
+from app.huawei.get_devices_live_data import get_plants_current_power_huawei
 
 main = Blueprint('main', __name__)
 
@@ -34,7 +35,7 @@ def price_page():
         selected_date = request.form.get('date')
         date_obj = datetime.strptime(selected_date, "%Y-%m-%d").date()
 
-    prices = Price.query.filter_by(date=date_obj).order_by(Price.hour).all()
+    prices = Price.query.filter_by(date=date_obj).order_by(Price.id).all()
         # Get min and max prices
     min_price = min([p.price for p in prices]) if prices else None
     max_price = max([p.price for p in prices]) if prices else None
@@ -135,6 +136,12 @@ def plants_page():
     plants_sungrow = [p for p in plants if p.make == "SUNGROW"]
     plant_ids_sungrow = [p.plant_id for p in plants_sungrow]
     power_map, battery_map = get_plants_current_power(plant_ids_sungrow)
+
+    # Get HUAWEI power and update power_map
+    huawei_plant_ids = [plant.id for plant in plants if plant.make == "HUAWEI"]
+    huawei_power_map = get_plants_current_power_huawei(current_user.company_id, huawei_plant_ids)
+    power_map.update(huawei_power_map)
+
     total_power = sum(p.installed_power or 0 for p in plants)
     total_current_power = sum(power_map[str(p.plant_id)] for p in plants if str(p.plant_id) in power_map)
     total_current_power = round(total_current_power, 2)
