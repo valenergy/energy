@@ -70,6 +70,7 @@ class Plant(db.Model):
     min_price = db.Column(db.Float)
     trader_id = db.Column(db.Integer, db.ForeignKey('traders.id'))
     metering_point = db.Column(db.String(128))
+    forecast_coeficient = db.Column(db.Integer)
     
     company = db.relationship('Company', backref='plants')
     trader = db.relationship('Trader', backref='plants')

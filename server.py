@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 from app.get_plant_data import get_plant_data_with_live_power, get_live_active_power
 from app.shutdown import shutdown_plant, shutdown_plant_via_ems, shutdown_plant_via_device
 from app.fetch_data_from_mail import update_trader_forecast_from_mail, send_forecast_to_trader
-from app.fetch_yield_data import fetch_yield_data
+from app.sungrow.fetch_yield_data import fetch_yield_data
 from app.download_price import download_save_price
 
 from app.start import start_plant, start_plant_via_ems, start_plant_via_device
@@ -40,7 +40,6 @@ from app.models import User, Role
 from app.routes import main
 from app.audit import log_audit
 
-import urllib.parse
 
 load_dotenv()
 # app = create_app()
@@ -512,19 +511,6 @@ def energy_upload():
     db.session.commit()
     return "OK"
 
-@app.route('/get_plant_yield_params', methods=['POST'])
-@login_required
-def get_plant_yield_params():
-    data = request.get_json()
-    date_str = data.get('date_str')
-    plant_id = int(data.get('plant_id'))
-    if not date_str:
-        return jsonify({"error": "Missing date_str"}), 400
-    # Call the function to fetch and store yield data
-    fetch_yield_data(date_str, plant_id)
-    # Optionally, return status or updated params
-    return jsonify({"success": True, "date_str": date_str})
-
 @app.route('/load_trader_forecast', methods=['POST'])
 @login_required
 def load_trader_forecast():
@@ -572,120 +558,6 @@ def send_forecast_to_trader_endpoint():
     else:
         return jsonify({"success": False, "error": "Can only send forecast for tomorrow"})
 
-def generate_forecast_for_miziya(irradiance):
-    if irradiance is None:
-        return None
-    return round(irradiance * 1032 * 0.21 * 0.97 / 1000, 0)
-
-def generate_forecast_for_niviqnin(irradiance):
-    # For Niviqnin: irradiance * 567 * 0.21 * 0.97 / 1000 / 4
-    if irradiance is None:
-        return None
-    return round(irradiance * 567 * 0.21 * 0.97 / 1000, 0)
-
-def generate_forecast_for_selanovci(irradiance):
-    # For Selanovci: irradiance * 999 * 0.21 * 0.97 / 1000 / 4
-    if irradiance is None:
-        return None
-    return round(irradiance * 999 * 0.21 * 0.97 / 1000, 0)
-
-@app.route('/generate_forecast', methods=['POST'])
-@login_required
-def generate_forecast():
-    data = request.get_json() or {}
-    plant_id = data.get('plant_id')
-    date_str = data.get('date_str')
-    if not plant_id or not date_str:
-        return jsonify({'success': False, 'error': 'missing plant_id or date_str'}), 400
-
-    try:
-        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-    except Exception:
-        return jsonify({'success': False, 'error': 'invalid date format, expected YYYY-MM-DD'}), 400
-
-    tomorrow = (datetime.now().date() + timedelta(days=1))
-    if selected_date != tomorrow:
-        return jsonify({'success': False, 'error': 'API call only allowed for tomorrow\'s date'}), 400
-
-    plant = Plant.query.get(plant_id)
-    if not plant:
-        return jsonify({'success': False, 'error': 'plant not found'}), 404
-
-    # parse location string "latitude=43.6862&longitude=23.8537"
-    loc = plant.location or ""
-    params = dict(urllib.parse.parse_qsl(loc))
-    lat = params.get('latitude')
-    lon = params.get('longitude')
-    if not lat or not lon:
-        return jsonify({'success': False, 'error': 'plant location missing or invalid'}), 400
-
-    api_url = 'https://api.open-meteo.com/v1/forecast'
-    api_params = {
-        'latitude': lat,
-        'longitude': lon,
-        'minutely_15': 'global_tilted_irradiance_instant',
-        'timezone': 'Africa/Cairo',
-        'tilt': '25',
-        'start_date': date_str,
-        'end_date': date_str
-    }
-
-    try:
-        resp = requests.get(api_url, params=api_params, timeout=30)
-        resp.raise_for_status()
-        j = resp.json()
-        times = j.get('minutely_15', {}).get('time', [])
-        irr = j.get('minutely_15', {}).get('global_tilted_irradiance_instant', [])
-        if not times or not irr or len(times) != len(irr):
-            return jsonify({'success': False, 'error': 'unexpected API response'}), 502
-
-        saved = 0
-        for t_s, v in zip(times, irr):
-            ts = datetime.fromisoformat(t_s)
-            if ts.date() != selected_date:
-                continue
-            start_period = ts.time()
-            end_period = (ts + timedelta(minutes=15)).time()
-            # upsert by date, start_period, plant_id
-            e = Energy.query.filter_by(date=selected_date, start_period=start_period, plant_id=plant.id).first()
-            val = float(v) if v is not None else None
-            # Calculate forecast for specific plants
-            if int(plant_id) == 3:
-                forecast = generate_forecast_for_miziya(val)
-            elif int(plant_id) == 9:
-                forecast = generate_forecast_for_niviqnin(val)
-            elif int(plant_id) == 2:
-                forecast = generate_forecast_for_selanovci(val)
-            else:
-                forecast = None
-
-            if e:
-                e.irradiance = val
-                if forecast is not None:
-                    e.producer_forecast = forecast
-            else:
-                e = Energy(
-                    date=selected_date,
-                    start_period=start_period,
-                    end_period=end_period,
-                    duration_in_minutes=15,
-                    trader_forecast=None,
-                    producer_forecast=forecast,
-                    yield_power=None,
-                    exported=None,
-                    plant_id=plant.id,
-                    price=None,
-                    irradiance=val
-                )
-                db.session.add(e)
-            saved += 1
-        db.session.commit()
-        return jsonify({'success': True, 'count': saved})
-    except requests.RequestException as ex:
-        return jsonify({'success': False, 'error': str(ex)}), 502
-    except Exception as ex:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': str(ex)}), 500
 
 if os.environ.get("FLASK_ENV") != "development":
     scheduler.start()

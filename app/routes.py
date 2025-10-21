@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, flash
-from app.models import db, Price, Plant, Trader, Device, Invertor, Company
+from app.models import db, Price, Plant, Trader, Device, Company, Energy
 from datetime import datetime, timedelta
 from flask_security import login_required
 from zoneinfo import ZoneInfo
@@ -9,10 +9,12 @@ from app.login_helper import get_valid_access_token, encrypt_token, get_valid_ac
 from flask_security import current_user
 import os
 import requests
+import urllib.parse
 from app.sungrow.get_device import get_and_store_devices
 from app.sungrow.get_plants import get_new_plants
-from app.shutdown import shutdown_plant, shutdown_plant_via_ems, shutdown_plant_via_device
-from app.start import start_plant, start_plant_via_ems, start_plant_via_device
+from app.sungrow.fetch_yield_data import fetch_yield_data
+from app.shutdown import shutdown_plant_via_ems, shutdown_plant_via_device
+from app.start import start_plant_via_ems, start_plant_via_device
 from app.huawei.get_plants import get_new_plants_huawei
 from app.huawei.get_devices import get_and_store_devices_huawei
 from app.huawei.get_devices_live_data import get_plants_current_power_huawei
@@ -330,3 +332,120 @@ def get_devices(plant_id):
     except Exception as e:
         flash(f"Error fetching devices: {e}")
     return redirect(url_for('main.plants_page'))
+
+
+@main.route('/generate_forecast', methods=['POST'])
+@login_required
+def generate_forecast():
+    data = request.get_json() or {}
+    plant_id = data.get('plant_id')
+    date_str = data.get('date_str')
+    if not plant_id or not date_str:
+        return jsonify({'success': False, 'error': 'missing plant_id or date_str'}), 400
+
+    try:
+        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except Exception:
+        return jsonify({'success': False, 'error': 'invalid date format, expected YYYY-MM-DD'}), 400
+
+    tomorrow = (datetime.now().date() + timedelta(days=1))
+    if selected_date != tomorrow:
+        return jsonify({'success': False, 'error': 'API call only allowed for tomorrow\'s date'}), 400
+
+    plant = Plant.query.get(plant_id)
+    if not plant:
+        return jsonify({'success': False, 'error': 'plant not found'}), 404
+    
+    forecast_coeficient = plant.forecast_coeficient
+
+    # parse location string "latitude=43.6862&longitude=23.8537"
+    loc = plant.location or ""
+    params = dict(urllib.parse.parse_qsl(loc))
+    lat = params.get('latitude')
+    lon = params.get('longitude')
+    if not lat or not lon:
+        return jsonify({'success': False, 'error': 'plant location missing or invalid'}), 400
+
+    api_url = 'https://api.open-meteo.com/v1/forecast'
+    api_params = {
+        'latitude': lat,
+        'longitude': lon,
+        'minutely_15': 'global_tilted_irradiance_instant',
+        'timezone': 'Africa/Cairo',
+        'tilt': '25',
+        'start_date': date_str,
+        'end_date': date_str
+    }
+
+    try:
+        resp = requests.get(api_url, params=api_params, timeout=30)
+        resp.raise_for_status()
+        j = resp.json()
+        times = j.get('minutely_15', {}).get('time', [])
+        irr = j.get('minutely_15', {}).get('global_tilted_irradiance_instant', [])
+        if not times or not irr or len(times) != len(irr):
+            return jsonify({'success': False, 'error': 'unexpected API response'}), 502
+
+        saved = 0
+        for t_s, v in zip(times, irr):
+            ts = datetime.fromisoformat(t_s)
+            if ts.date() != selected_date:
+                continue
+            start_period = ts.time()
+            end_period = (ts + timedelta(minutes=15)).time()
+            # upsert by date, start_period, plant_id
+            e = Energy.query.filter_by(date=selected_date, start_period=start_period, plant_id=plant.id).first()
+            val = float(v) if v is not None else None
+
+            if forecast_coeficient and val is not None:
+                forecast = round(val * forecast_coeficient * 0.21 * 0.97 / 1000, 0)
+            else:
+                forecast = None
+
+            if e:
+                e.irradiance = val
+                if forecast is not None:
+                    e.producer_forecast = forecast
+            else:
+                e = Energy(
+                    date=selected_date,
+                    start_period=start_period,
+                    end_period=end_period,
+                    duration_in_minutes=15,
+                    trader_forecast=None,
+                    producer_forecast=forecast,
+                    yield_power=None,
+                    exported=None,
+                    plant_id=plant.id,
+                    price=None,
+                    irradiance=val
+                )
+                db.session.add(e)
+            saved += 1
+        db.session.commit()
+        return jsonify({'success': True, 'count': saved})
+    except requests.RequestException as ex:
+        return jsonify({'success': False, 'error': str(ex)}), 502
+    except Exception as ex:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+@main.route('/get_plant_yield_params', methods=['POST'])
+@login_required
+def get_plant_yield_params():
+    data = request.get_json()
+    date_str = data.get('date_str')
+    plant_id = int(data.get('plant_id'))
+    if not date_str:
+        return jsonify({"error": "Missing date_str"}), 400
+    # Call the function to fetch and store yield data
+
+    plant = Plant.query.filter_by(id=plant_id).first()
+    if not plant or not plant.plant_id:
+        return jsonify({"error": "Invalid plant"}), 400
+    if plant.make == "SUNGROW":
+        fetch_yield_data(date_str, plant)
+    else:
+        return jsonify({"error": "Yield data fetching only implemented for SUNGROW plants"}), 400
+    # Optionally, return status or updated params
+    return jsonify({"success": True, "date_str": date_str})

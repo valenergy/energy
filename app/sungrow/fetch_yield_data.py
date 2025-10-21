@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timedelta
 import pandas as pd
 
-def fetch_yield_data(date_str, plant_id):
+def fetch_yield_data(date_str, plant):
     ACCESS_KEY = os.environ.get("ACCESS_KEY")
     APP_KEY = os.environ.get("APP_KEY")
     LANG = "_en_US"
@@ -13,12 +13,9 @@ def fetch_yield_data(date_str, plant_id):
 
     date_obj = datetime.strptime(date_str, "%Y-%m-%d")
 
-    # Only fetch the plant with the given plant_id
-    plant = Plant.query.filter_by(id=plant_id).first()
     if not plant or not plant.plant_id:
         return
-
-
+    
     access_token = get_valid_access_token(plant.company_id)
     ps_id = str(plant.plant_id)
 
