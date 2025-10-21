@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from flask_security import login_required
 from zoneinfo import ZoneInfo
 from app.audit import log_audit
-from app.get_plant_data import get_plants_current_power
+from app.sungrow.get_plant_data import get_plants_current_power
 from app.login_helper import get_valid_access_token, encrypt_token, get_valid_access_token_huawei
 from flask_security import current_user
 import os
