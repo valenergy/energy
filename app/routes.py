@@ -16,7 +16,7 @@ from app.start import start_plant, start_plant_via_ems, start_plant_via_device
 from app.huawei.get_plants import get_new_plants_huawei
 from app.huawei.get_devices import get_and_store_devices_huawei
 from app.huawei.get_devices_live_data import get_plants_current_power_huawei
-
+from app.huawei.manage_plant import stop_plant_huawei, start_plant_huawei
 main = Blueprint('main', __name__)
 
 @main.route('/')
@@ -260,27 +260,24 @@ def plant_action_by_psid():
     plant = Plant.query.filter_by(id=ps_id).first()
     if not plant:
         return "Plant not found", 404
-
-    # If plant has battery, use EMS method
-    if plant.hasBattery:
-        ems_device = Device.query.filter_by(plant_id=plant.id, device_type=26).first()
-        if not ems_device:
-            return "EMS device not found for this plant", 404
-        if action == "shutdown":
-            result = shutdown_plant_via_ems(ems_device.uuid, plant.id)
-            if result and not result.get("error"):
-                plant.status = "OFF"
-                db.session.commit()
+    
+    if plant.make == "SUNGROW":
+        # If plant has battery, use EMS method
+        if plant.hasBattery:
+            ems_device = Device.query.filter_by(plant_id=plant.id, device_type=26).first()
+            if not ems_device:
+                return "EMS device not found for this plant", 404
+            if action == "shutdown":
+                result = shutdown_plant_via_ems(ems_device.uuid, plant.id)
+                if result and not result.get("error"):
+                    plant.status = "OFF"
+                    db.session.commit()
+            else:
+                result = start_plant_via_ems(ems_device.uuid, plant.id)
+                if result and not result.get("error"):
+                    plant.status = "ON"
+                    db.session.commit()
         else:
-            result = start_plant_via_ems(ems_device.uuid, plant.id)
-            if result and not result.get("error"):
-                plant.status = "ON"
-                db.session.commit()
-    else:
-        invertors = Invertor.query.filter_by(plant_id=ps_id).all()
-        device_ids = [inv.device_id for inv in invertors if inv.device_id]
-        if not device_ids:
-            # Fallback: check devices table for device_type=1
             devices = Device.query.filter_by(plant_id=plant.id, device_type=1).all()
             device_uuids = [str(dev.uuid) for dev in devices if dev.uuid]
             if not device_uuids:
@@ -296,21 +293,21 @@ def plant_action_by_psid():
                 if plant:
                     plant.status = "ON"
                     db.session.commit()
+    elif plant.make == "HUAWEI":
+        if action == "shutdown":
+            result = stop_plant_huawei(current_user.company_id, plant.plant_id)
+            if result and not result.get("error"):
+                plant.status = "OFF"
+                db.session.commit()
         else:
-            if action == "shutdown":
-                result = shutdown_plant(device_ids)
-                if plant:
-                    plant.status = "OFF"
-                    db.session.commit()
-            else:
-                result = start_plant(device_ids)
-                if plant:
-                    plant.status = "ON"
-                    db.session.commit()
+            result = start_plant_huawei(current_user.company_id, plant.plant_id)
+            if result and not result.get("error"):
+                plant.status = "ON"
+                db.session.commit()
 
     # Audit log
     principal = getattr(current_user, "email", None) or getattr(current_user, "id", None) or str(current_user)
-    log_audit(principal, f"Triggered {action} for plant with ps_id={ps_id}")
+    log_audit(principal, f"Triggered {action} for plant {plant.name}")
     return f"{action.capitalize()} triggered", 200
 
 @main.route('/get-devices/<int:plant_id>', methods=['GET'])
