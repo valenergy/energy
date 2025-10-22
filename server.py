@@ -1,11 +1,11 @@
 import os
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
-from app.shutdown import shutdown_plant_via_ems, shutdown_plant_via_device
+from app.sungrow.shutdown import shutdown_plant_via_ems, shutdown_plant_via_device
 from app.fetch_data_from_mail import update_trader_forecast_from_mail, send_forecast_to_trader
 from app.download_price import download_save_price
 
-from app.start import start_plant_via_ems, start_plant_via_device
+from app.sungrow.start import start_plant_via_ems, start_plant_via_device
 import pandas as pd
 from datetime import datetime, timedelta
 from subprocess import run
@@ -192,6 +192,8 @@ def scheduled_shutdown_check():
             return
         for plant in plants:
             if price_row.price < plant.min_price:
+                if plant.make == "HUAWEI":
+                    continue  # Skip Huawei plants for now
                 if not plant.hasBattery:
                     devices = Device.query.filter_by(plant_id=plant.id, device_type=1).all()
                     device_uuids = [str(dev.uuid) for dev in devices if dev.uuid]
@@ -247,6 +249,8 @@ def scheduled_start_check():
             if not price_row:
                 continue
             if price_row.price > plant.min_price:
+                if plant.make == "HUAWEI":
+                    continue  # Skip Huawei plants for now
                 if not plant.hasBattery:
                     devices = Device.query.filter_by(plant_id=plant.id, device_type=1).all()
                     device_uuids = [str(dev.uuid) for dev in devices if dev.uuid]
