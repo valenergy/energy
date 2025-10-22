@@ -5,10 +5,80 @@
     <title>Plants List</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        .plants-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            justify-content: flex-start;
+        }
+        .plant-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            padding: 18px;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            width: 28%;
+            min-width: 260px;
+            max-width: 320px;
+        }
+        @media (max-width: 1000px) {
+            .plant-card { width: 45%; }
+        }
+        @media (max-width: 700px) {
+            .plants-grid { flex-direction: column; }
+            .plant-card { width: 100%; }
+        }
+        .plant-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .plant-status {
+            font-size: 1.2em;
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .plant-actions {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+        }
+        .plant-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5em;
+        }
+        .plant-info-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 90px;
+        }
+        .plant-label {
+            font-weight: bold;
+            color: #1976d2;
+        }
+        .plant-value {
+            color: #333;
+        }
+        .plant-id-hidden {
+            display: none;
+        }
+        .price-box-row { margin-bottom: 24px; }
+    </style>
 </head>
 <body>
     {% include 'nav.html' %}
-    <div class="container" style="max-width: 1200px; margin: 0 auto;">
+    <div class="container" style="max-width: 1100px; margin: 0 auto;">
         {% if min_price is defined and max_price is defined %}
             <div class="price-box-row">
                 <div class="price-box min-price">
@@ -35,60 +105,97 @@
                 {% endif %}
             </div>
         {% endif %}
-        {% if plants and plants|length > 0 %}
-            <div class="table-responsive">
-                <table border="1" class="plants-table" style="width:100%; margin-top:20px;">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Make</th>
-                            <th>PS ID</th>
-                            <th>Installed Power</th>
-                            <th>Status</th>
-                            <th>Trader</th>
-                            <th>Minimum Price</th>
-                            <th>Current Power (kW)</th>
-                            <th>Battery Power (kW)</th>
-                            <th colspan="3">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for plant in plants %}
-                        <tr>
-                            <td>{{ plant.id }}</td>
-                            <td>{{ plant.name }}</td>
-                            <td>{{ plant.make }}</td>
-                            <td>{{ plant.plant_id }}</td>
-                            <td>{{ plant.installed_power }}</td>
-                            <td>{{ plant.status }}</td>
-                            <td>{{ plant.trader.name }}</td>
-                            <td>{{ plant.min_price }}</td>
-                            <td>
-                                {{ power_map[plant.plant_id|string] if power_map[plant.plant_id|string] is defined else 'N/A' }}
-                            </td>
-                            <td>
-                                {{ battery_map[plant.plant_id|string] if battery_map[plant.plant_id|string] is defined else 'N/A' }}
-                            </td>
-                            <td>
-                                <button class="btn btn-danger" onclick="plantAction('{{ plant.id }}', 'shutdown')">Shutdown</button>
-                            </td>
-                            <td>
-                                <button class="btn btn-success" onclick="plantAction('{{ plant.id }}', 'start')">Start</button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        <tr>
-                            <td colspan="4" style="text-align:right;"><strong>Total Installed Power:</strong></td>
-                            <td><strong>{{ total_power }}</strong></td>
-                            <td colspan="3" style="text-align:right;"><strong>Current Power:</strong></td>
-                            <td><strong>{{ total_current_power }}</strong></td>
-                            <td colspan="3"></td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div style="display: flex; gap: 24px; margin-bottom: 24px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 220px; background: #f5f5f5; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); display: flex; align-items: center; gap: 16px;">
+                    <i class="fa-solid fa-bolt" style="font-size:2em; color:#1976d2;"></i>
+                    <div>
+                        <div style="font-weight: bold; color: #1976d2;">Total Installed Power</div>
+                        <div style="font-size: 1.3em; color: #333;">{{ total_power }} <span style="font-size:0.9em;">kW</span></div>
+                    </div>
+                </div>
+                <div style="flex: 1; min-width: 220px; background: #f5f5f5; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); display: flex; align-items: center; gap: 16px;">
+                    <i class="fa-solid fa-gauge-high" style="font-size:2em; color:#43a047;"></i>
+                    <div>
+                        <div style="font-weight: bold; color: #43a047;">Total Current Power</div>
+                        <div style="font-size: 1.3em; color: #333;">{{ total_current_power }} <span style="font-size:0.9em;">kW</span></div>
+                    </div>
+                </div>
+                <div style="flex: 1; min-width: 220px; background: #f5f5f5; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); display: flex; align-items: center; gap: 16px;">
+                    <i class="fa-solid fa-battery-full" style="font-size:2em; color:#fbc02d;"></i>
+                    <div>
+                        <div style="font-weight: bold; color: #fbc02d;">Total Battery Power</div>
+                        <div style="font-size: 1.3em; color: #333;">
+                            {{ total_battery_power }} <span style="font-size:0.9em;">kW</span>
+                            {% if total_battery_power > 0 %}
+                                <i class="fa-solid fa-arrow-up" style="color:#e53935;" title="Discharging"></i>
+                                <span style="color:#e53935;">Discharging</span>
+                            {% elif total_battery_power < 0 %}
+                                <i class="fa-solid fa-arrow-down" style="color:#43a047;" title="Charging"></i>
+                                <span style="color:#43a047;">Charging</span>
+                            {% else %}
+                                <i class="fa-solid fa-arrows-left-right" style="color:#757575;" title="Idle"></i>
+                                <span style="color:#757575;">Idle</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             </div>
-            <button onclick="window.location.href='/addplant'" class="btn btn-secondary" style="margin-left:16px; margin-top:8px;">Add Plant</button>
+
+        {% if plants and plants|length > 0 %}
+            <div class="plants-grid">
+            {% for plant in plants %}
+                <div class="plant-card">
+                    <span class="plant-id-hidden" data-plant-id="{{ plant.id }}" data-ps-id="{{ plant.plant_id }}"></span>
+                    <div class="plant-header">
+                        <span class="plant-label">{{ plant.name }}</span>
+                        <span class="plant-status">
+                            {% if plant.status == "ON" %}
+                                <i class="fa-solid fa-circle-check" style="color: #43a047;" title="ON"></i>
+                                <span style="color:#43a047;">ON</span>
+                            {% else %}
+                                <i class="fa-solid fa-circle-xmark" style="color: #e53935;" title="OFF"></i>
+                                <span style="color:#e53935;">OFF</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="plant-info-row">
+                        <div><span class="plant-value">{{ plant.make }}</span> - <span class="plant-value">{{ plant.installed_power }}</span> kW</div>
+                        <div><span class="plant-label">Trader:</span> <span class="plant-value">{{ plant.trader.name }}</span> <span class="plant-label">Min Price:</span> <span class="plant-value">{{ plant.min_price }}</span></div>
+                        <div><span class="plant-label">Current Power:</span> <span class="plant-value">{{ power_map[plant.plant_id|string] if power_map[plant.plant_id|string] is defined else 'N/A' }}</span> kW</div>
+                        {% if battery_map[plant.plant_id|string] is defined and battery_map[plant.plant_id|string] != 'N/A' %}
+                            {% set battery_power = battery_map[plant.plant_id|string]|float %}
+                            <div>
+                                <span class="plant-label">Battery Power:</span>
+                                <span class="plant-value">
+                                    {{ battery_power }} kW
+                                    {% if battery_power > 0 %}
+                                        <i class="fa-solid fa-arrow-up" style="color:#e53935;" title="Discharging"></i>
+                                        <span style="color:#e53935;">Discharging</span>
+                                    {% elif battery_power < 0 %}
+                                        <i class="fa-solid fa-arrow-down" style="color:#43a047;" title="Charging"></i>
+                                        <span style="color:#43a047;">Charging</span>
+                                    {% else %}
+                                        <i class="fa-solid fa-arrows-left-right" style="color:#757575;" title="Idle"></i>
+                                        <span style="color:#757575;">Idle</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="plant-actions">
+                        <button onclick="plantAction('{{ plant.id }}', 'shutdown')" title="Shutdown">
+                            <i class="fa-solid fa-power-off" style="color:#e53935;"></i>
+                        </button>
+                        <button onclick="plantAction('{{ plant.id }}', 'start')" title="Start">
+                            <i class="fa-solid fa-play" style="color:#43a047;"></i>
+                        </button>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+            <div style="margin:24px 0;">
+                <button onclick="window.location.href='/addplant'" class="btn btn-secondary">Add Plant</button>
+            </div>
         {% else %}
             <div style="margin-top:40px; text-align:center;">
                 <button onclick="window.location.href='/connect-plant'" class="btn btn-secondary">Connect Plant</button>

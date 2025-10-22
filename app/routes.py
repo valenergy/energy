@@ -147,7 +147,12 @@ def plants_page():
     total_power = sum(p.installed_power or 0 for p in plants)
     total_current_power = sum(power_map[str(p.plant_id)] for p in plants if str(p.plant_id) in power_map)
     total_current_power = round(total_current_power, 2)
-
+    total_battery_power = sum(
+        float(battery_map[str(p.plant_id)]) 
+        for p in plants 
+        if str(p.plant_id) in battery_map and isinstance(battery_map[str(p.plant_id)], (int, float))
+    )
+    total_battery_power = round(total_battery_power, 2)
     # Get today's prices
     today = datetime.now().date()
     tomorrow = today + timedelta(days=1)
@@ -175,6 +180,7 @@ def plants_page():
         plants=plants,
         total_power=total_power,
         power_map=power_map,
+        total_battery_power=total_battery_power,
         battery_map=battery_map,
         total_current_power=total_current_power,
         min_price=min_price,
