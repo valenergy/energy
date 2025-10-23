@@ -19,3 +19,4 @@ pymodbus
 argon2-cffi
 setuptools
 pytest
+flask_caching

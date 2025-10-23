@@ -55,3 +55,50 @@ def get_plants_current_power(plant_ids):
         print(f"Error fetching plant power: {e}")
         return {}
 
+
+def get_plants_status(plant_ids):
+    """
+    Fetch power station details for given plant_ids and return a map keyed by ps_id (string).
+    Each value is a dict with the important fields: online_status and ps_fault_status.
+
+    Returns: { "<ps_id>": {"online_status": int|None, "ps_fault_status": int|None}, ... }
+    """
+    ACCESS_KEY = os.environ.get("ACCESS_KEY")
+    APP_KEY = os.environ.get("APP_KEY")
+
+    access_token = get_valid_access_token(current_user.company_id)
+    if not access_token or not plant_ids:
+        return {}
+
+    url = "https://gateway.isolarcloud.eu/openapi/platform/getPowerStationDetail"
+    headers = {
+        "authorization": f"Bearer {access_token}",
+        "content-type": "application/json",
+        "x-access-key": ACCESS_KEY
+    }
+    payload = {
+        "ps_ids": ",".join(str(pid) for pid in plant_ids),
+        "is_get_ps_remarks": "1",
+        "appkey": APP_KEY,
+        "lang": "_en_US"
+    }
+
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=30)
+        resp.raise_for_status()
+        j = resp.json()
+        status_map = {}
+        for item in j.get("result_data", {}).get("data_list", []):
+            pid = item.get("ps_id")
+            if pid is None:
+                continue
+            pid_key = str(pid)
+            status_map[pid_key] = {
+                "online_status": item.get("online_status"),
+                "ps_fault_status": item.get("ps_fault_status")
+            }
+        return status_map
+    except Exception as e:
+        print(f"Error fetching plant status: {e}")
+        return {}
+

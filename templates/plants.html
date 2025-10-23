@@ -31,7 +31,7 @@
             .plant-card { width: 45%; }
         }
         @media (max-width: 700px) {
-            .plants-grid { flex-direction: column; }
+            .plants-grid { flex-direction: column; margin: 15px; }
             .plant-card { width: 100%; }
         }
         .plant-header {
@@ -157,6 +157,30 @@
                                 <span style="color:#e53935;">OFF</span>
                             {% endif %}
                         </span>
+                    </div>
+                    <div class="plant-header">
+                            {% set status = status_map[plant.plant_id|string] if status_map is defined and status_map[plant.plant_id|string] is defined else None %}
+                            {% if status %}
+                                <!-- Online Status -->
+                                {% if status.online_status == 1 %}
+                                    <i class="fa-solid fa-wifi" style="color:#43a047;" title="Online"></i>
+                                    <span style="color:#43a047;">Online</span>
+                                {% else %}
+                                    <i class="fa-solid fa-wifi" style="color:#e53935;" title="Offline"></i>
+                                    <span style="color:#e53935;">Offline</span>
+                                {% endif %}
+                                <!-- Fault Status -->
+                                {% if status.ps_fault_status == 1 %}
+                                    <i class="fa-solid fa-triangle-exclamation" style="color:#e53935;" title="Fault"></i>
+                                    <span style="color:#e53935;">Fault</span>
+                                {% elif status.ps_fault_status == 2 %}
+                                    <i class="fa-solid fa-bell" style="color:#fbc02d;" title="Alarm"></i>
+                                    <span style="color:#fbc02d;">Alarm</span>
+                                {% elif status.ps_fault_status == 3 %}
+                                    <i class="fa-solid fa-circle-check" style="color:#43a047;" title="Normal"></i>
+                                    <span style="color:#43a047;">Normal</span>
+                                {% endif %}
+                            {% endif %}
                     </div>
                     <div class="plant-info-row">
                         <div><span class="plant-value">{{ plant.make }}</span> - <span class="plant-value">{{ plant.installed_power }}</span> kW</div>

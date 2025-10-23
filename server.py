@@ -34,14 +34,18 @@ from flask import jsonify
 
 from flask_security import Security, SQLAlchemyUserDatastore, login_required, current_user
 from app.models import User, Role
+from app.cache_util import cache
 
 from app.routes import main
 from app.audit import log_audit
+
+from flask_caching import Cache
 
 
 load_dotenv()
 # app = create_app()
 app = Flask(__name__)
+cache.init_app(app)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.environ.get("SECRET_KEY")
 app.register_blueprint(main)

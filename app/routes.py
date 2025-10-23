@@ -10,7 +10,7 @@ import os
 import requests
 import urllib.parse
 from app.sungrow.get_device import get_and_store_devices
-from app.sungrow.get_plant_data import get_plants_current_power
+from app.sungrow.get_plant_data import get_plants_current_power, get_plants_status
 from app.sungrow.get_plants import get_new_plants
 from app.sungrow.fetch_yield_data import fetch_yield_data
 from app.sungrow.shutdown import shutdown_plant_via_ems, shutdown_plant_via_device
@@ -19,6 +19,8 @@ from app.huawei.get_plants import get_new_plants_huawei
 from app.huawei.get_devices import get_and_store_devices_huawei
 from app.huawei.get_devices_live_data import get_plants_current_power_huawei
 from app.huawei.manage_plant import stop_plant_huawei, start_plant_huawei
+from app.cache_util import get_cached_maps
+
 main = Blueprint('main', __name__)
 
 @main.route('/')
@@ -134,16 +136,8 @@ def huawei_callback():
 @login_required
 def plants_page():
     company_id = current_user.company_id
+    power_map, battery_map, status_map = get_cached_maps(company_id)
     plants = Plant.query.filter_by(company_id=company_id).order_by(Plant.id).all()
-    plants_sungrow = [p for p in plants if p.make == "SUNGROW"]
-    plant_ids_sungrow = [p.plant_id for p in plants_sungrow]
-    power_map, battery_map = get_plants_current_power(plant_ids_sungrow)
-
-    # Get HUAWEI power and update power_map
-    huawei_plant_ids = [plant.id for plant in plants if plant.make == "HUAWEI"]
-    huawei_power_map = get_plants_current_power_huawei(current_user.company_id, huawei_plant_ids)
-    power_map.update(huawei_power_map)
-
     total_power = sum(p.installed_power or 0 for p in plants)
     total_current_power = sum(power_map[str(p.plant_id)] for p in plants if str(p.plant_id) in power_map)
     total_current_power = round(total_current_power, 2)
@@ -182,6 +176,7 @@ def plants_page():
         power_map=power_map,
         total_battery_power=total_battery_power,
         battery_map=battery_map,
+        status_map=status_map,
         total_current_power=total_current_power,
         min_price=min_price,
         max_price=max_price,
